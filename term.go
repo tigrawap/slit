@@ -4,6 +4,11 @@ import (
 	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
+	"context"
+	"github.com/tigrawap/slit/runes"
+	"runtime"
+	"time"
+	"golang.org/x/text/search"
 )
 
 type viewer struct {
@@ -12,11 +17,13 @@ type viewer struct {
 	width         int
 	height        int
 	wrap          bool
-	rf            RuneFile
+	fetcher       *fetcher
 	focus         Focusing
 	info          infobar
+	searchMode    infobarMode
 	forwardSearch bool
 	search        []rune
+	buffer        viewBuffer
 }
 
 type action uint
@@ -41,27 +48,33 @@ type Navigator interface {
 }
 
 func (v *viewer) searchForward() {
-	for i, line := range v.rf[v.pos:] {
-		if i == 0 {
-			// TODO: Check search index
-			continue
-		}
-		if ansi.Index(line, v.search) != -1 {
-			v.navigate(+i)
-			break
-		}
+	/*
+	Best of all worlds if:
+	1) First search in buffer, it may already be there, move to it's position if it's there
+	(Right now buffer is fixed to 2-3 windows, but it's subject to change
+	(fetch 1 window and display, fetch 20 more windows in background, so it might be quite big and search is efficient)
+	2) If not found - pass search to fetcher to get first line, then fill from that line
+	3) fetcher should search lines in parallel and sort found lines, return first occurence
+	4) If not found in buffer and not found via fetcher - no actions taken, so screen remains same
+	 */
+	index := -1
+	if index = v.buffer.searchForward(v.search); index != -1 {
+		v.navigate(index)
+		return
+	}
+	if index = v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, v.search); index != -1 {
+		v.buffer.reset(index)
 	}
 }
 
 func (v *viewer) searchBack() {
-	var line ansi.Arunes
-	prevLines := v.rf[:v.pos]
-	for i := len(prevLines) - 1; i >= 0; i-- {
-		line = prevLines[i]
-		if ansi.Index(line, v.search) != -1 {
-			v.navigate(i - len(prevLines))
-			break
-		}
+	index := -1
+	if index = v.buffer.searchBack(v.search); index != -1 {
+		v.navigate(-index)
+		return
+	}
+	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos, v.search); index != -1 {
+		v.buffer.reset(index)
 	}
 }
 
@@ -76,29 +89,41 @@ func (v *viewer) nextSearch(reverse bool) {
 	}
 }
 
-var stylesMap = map[uint16]termbox.Attribute{
+var stylesMap = map[uint8]termbox.Attribute{
 	1: termbox.AttrBold,
 }
 
+//func (v *viewer) getLine(line int) ansi.Astring {
+//	ctx, cancel := context.WithCancel(context.Background())
+//	defer cancel()
+//	dataChan := v.fetcher.Get(ctx, int32(line), true)
+//	data := <-dataChan
+//	return data.Str
+//}
+
 func (v *viewer) draw() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-	for ty, dataLine := 0, v.pos; ty < v.height; ty++ {
+	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		var tx int
-		chars := v.rf[dataLine]
-		if v.hOffset > len(chars)-1 {
-			chars = chars[:0]
+		data := v.buffer.getLine(dataLine)
+		var chars []rune
+		var attrs []ansi.RuneAttr
+		if v.hOffset > len(data.Runes)-1 {
+			chars = data.Runes[:0]
+			attrs = data.Attrs[:0]
 		} else {
-			chars = chars[v.hOffset:]
+			chars = data.Runes[v.hOffset:]
+			attrs = data.Attrs[v.hOffset:]
 		}
 		var hlIndices []int
 		hlChars := 0
 		if len(v.search) != 0 {
-			hlIndices = []int{}
-			hlIndices = ansi.IndexAll(chars, v.search) //TODO: Optimize for longer string? (mind wrap)
+			hlIndices = runes.IndexAll(chars, v.search)
 		} else {
 			hlIndices = []int{}
 		}
 		for i, char := range chars {
+			attr := attrs[i]
 			bg := termbox.ColorBlack
 			fg := termbox.ColorWhite
 			if len(hlIndices) != 0 && hlChars == 0 {
@@ -111,15 +136,15 @@ func (v *viewer) draw() {
 				bg = termbox.ColorYellow
 				hlChars--
 			}
-			if char.Attr.Fg != 0 {
-				fg = termbox.Attribute(char.Attr.Fg-30+1) | stylesMap[char.Attr.Style]
+			if attr.Fg != 0 {
+				fg = termbox.Attribute(attr.Fg-30+1) | stylesMap[attr.Style]
 			}
 			if bg == termbox.ColorBlack { // If already highlighted by search - dont use original color
-				if char.Attr.Bg != 0 {
-					bg = termbox.Attribute(char.Attr.Bg - 40 + 1)
+				if attr.Bg != 0 {
+					bg = termbox.Attribute(attr.Bg - 40 + 1)
 				}
 			}
-			termbox.SetCell(tx, ty, char.Rune, fg, bg)
+			termbox.SetCell(tx, ty, char, fg, bg)
 			if !v.wrap {
 			}
 			tx++
@@ -142,24 +167,27 @@ func (v *viewer) draw() {
 }
 
 func (v *viewer) navigate(direction int) {
-	newPos := v.pos + direction
-	if newPos < 0 {
-		newPos = 0
-	}
-	if newPos >= len(v.rf)-v.height {
-		newPos = len(v.rf) - v.height
-	}
-	v.pos = newPos
+	v.buffer.shift(direction)
 	v.draw()
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	logging.Debug(mem.Alloc)
+	logging.Debug("total alloc", mem.TotalAlloc)
+	logging.Debug("sys", mem.Sys)
+	logging.Debug(mem.HeapAlloc)
+	logging.Debug(mem.HeapSys)
+	logging.Debug("goroutines num", runtime.NumGoroutine())
+	runtime.GC()
 }
 
 func (v *viewer) navigateEnd() {
-	v.pos = len(v.rf) - v.height
+	v.buffer.reset(v.fetcher.lastLine())
+	v.navigate(- v.height + 1)
 	v.draw()
 }
 
 func (v *viewer) navigateStart() {
-	v.pos = 0
+	v.buffer.reset(0)
 	v.draw()
 }
 
@@ -205,13 +233,18 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigateStart()
 		case 'G':
 			v.navigateEnd()
+		case 'f':
+			v.navigate(+v.height)
+		case 'b':
+			v.navigate(-v.height)
 		case '/':
 			v.focus = &v.info
-			v.forwardSearch = true
 			v.info.reset(ibModeSearch)
+		case '&':
+			v.focus = &v.info
+			v.info.reset(ibModeFilter)
 		case '?':
 			v.focus = &v.info
-			v.forwardSearch = false
 			v.info.reset(ibModeBackSearch)
 		}
 	} else {
@@ -240,14 +273,17 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 func (v *viewer) resize(width, height int) {
 	v.width, v.height = width, height
 	v.height-- // Saving one line for infobar
-	if v.pos+height >= len(v.rf) {
-		v.pos = len(v.rf) - height + 1 // resize can lead to crash when expanding in the end of file
-	}
 	v.info.resize(v.width, v.height)
+	v.buffer.window = v.height
 	v.draw()
 }
 
-var requestSearch = make(chan []rune)
+type searchRequest struct {
+	str  []rune
+	mode infobarMode
+}
+
+var requestSearch = make(chan searchRequest)
 
 func (v *viewer) termGui() {
 	err := termbox.Init()
@@ -259,6 +295,9 @@ func (v *viewer) termGui() {
 	termbox.SetOutputMode(termbox.Output256)
 	v.info = infobar{y: 0, width: 0}
 	v.focus = v
+	v.buffer = viewBuffer{
+		fetcher: v.fetcher,
+	}
 	v.resize(termbox.Size())
 loop:
 	for {
@@ -281,12 +320,24 @@ loop:
 		case termbox.EventInterrupt:
 			select {
 			case search := <-requestSearch:
-				v.search = search
-				v.nextSearch(false)
-				v.draw()
-			default:
+				v.processSearch(search)
+			case time.After(10 * time.Millisecond):
+				continue
 			}
 		}
 	}
 
+}
+func (v *viewer) processSearch(search searchRequest) {
+	logging.Debug("Got search request")
+	if search.mode == ibModeFilter {
+		v.fetcher.filters = append(v.fetcher.filters, &includeOnlyFilter{search.str})
+		v.buffer.reset(v.buffer.currentLine().Pos)
+		// request filter
+	} else {
+		v.search = search.str
+		v.forwardSearch = search.mode == ibModeSearch
+		v.nextSearch(false)
+	}
+	v.draw()
 }

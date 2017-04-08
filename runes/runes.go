@@ -57,7 +57,6 @@ func IndexAll(runestack, sub []rune) (indices []int) {
 		if f > 100 {
 			panic("Too many occurences")
 		}
-		logging.Debug(ret)
 		if ret == -1 {
 			break
 		} else {

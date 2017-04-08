@@ -14,10 +14,10 @@ func Debug(l ...interface{}) {
 	log.Println(l)
 }
 
-func Timeit(name string) func(){
+func Timeit(l ...interface{}) func(){
 	start := time.Now()
-	Debug("->", name)
+	Debug("->", l)
 	return func(){
-		Debug("<- ", name, time.Since(start))
+		Debug("<- ", l, time.Since(start))
 	}
 }

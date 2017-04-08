@@ -14,6 +14,7 @@ const (
 	ibModeStatus     infobarMode = iota
 	ibModeSearch
 	ibModeBackSearch
+	ibModeFilter
 )
 
 type infobar struct {
@@ -61,6 +62,9 @@ func (v *infobar) draw() {
 		v.showSearch()
 	case ibModeSearch:
 		termbox.SetCell(0, v.y, '/', termbox.ColorGreen, termbox.ColorBlack)
+		v.showSearch()
+	case ibModeFilter:
+		termbox.SetCell(0, v.y, '&', termbox.ColorGreen, termbox.ColorBlack)
 		v.showSearch()
 	case ibModeStatus:
 		v.statusBar()
@@ -121,9 +125,10 @@ func (v *infobar) moveCursorToPosition(pos int) {
 
 func (v *infobar) requestSearch() {
 	searchString := append([]rune(nil), v.editBuffer...) // Buffer may be modified by concurrent reset
+	searchMode := v.mode
 	go func() {
 		go func() {
-			requestSearch <- searchString
+			requestSearch <- searchRequest{searchString, searchMode}
 		}()
 		termbox.Interrupt()
 	}()
