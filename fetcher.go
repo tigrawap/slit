@@ -11,21 +11,21 @@ import (
 	"github.com/tigrawap/slit/runes"
 )
 
-// Fetches data lines applying filters and search maintaining internal buffer of 1000 lines
 type fetcher struct {
-	lock          sync.Mutex
-	lineMap       map[int]int // caches offset of every line
-	reader        io.ReadSeeker
-	lineReader    *bufio.Reader
-	lineReaderPos int
-	totalLines    int  //Total lines currently fetched
-	filters       []filter
+	lock           sync.Mutex
+	lineMap        map[int]int // caches offset of every line
+	reader         io.ReadSeeker
+	lineReader     *bufio.Reader
+	lineReaderPos  int
+	totalLines     int //Total lines currently fetched
+	filters        []filter
+	filtersEnabled bool
 }
 
 // Pos == -1 if line is excluded
 func (f *fetcher) filteredLine(l posLine) (line) {
 	str := ansi.NewAstring(l.b)
-	if len(f.filters) == 0 {
+	if len(f.filters) == 0 || !f.filtersEnabled {
 		return line{str, l.pos}
 	}
 	var action filterAction
@@ -43,9 +43,10 @@ func (f *fetcher) filteredLine(l posLine) (line) {
 
 func newFetcher(reader io.ReadSeeker) *fetcher {
 	return &fetcher{
-		reader:     reader,
-		lineMap:    map[int]int{0: 0},
-		lineReader: bufio.NewReaderSize(reader, 64*1024),
+		reader:         reader,
+		lineMap:        map[int]int{0: 0},
+		lineReader:     bufio.NewReaderSize(reader, 64*1024),
+		filtersEnabled: true,
 	}
 }
 
@@ -115,11 +116,10 @@ func (f *fetcher) readline() ([]byte, int, error) {
 	}
 }
 
-// Returns 2 channels: for consuming posLines and returning of built Astring
-// Astrings guranteed to return in recieved order
+// Returns 2 channels: for consuming posLines and returning of built line struct
+// lines guranteed to return in received order with filters applied
 func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line) {
-	bufSize := 256 // This will make this layer to read 256 lines even if no such need
-	// Alternatively could make double-buffer, while one is flushing - another is processing.
+	bufSize := 256
 	feeder := make(chan posLine, bufSize)
 	lines := make(chan line, bufSize)
 	buffer := make([]line, bufSize)

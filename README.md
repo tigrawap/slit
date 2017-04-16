@@ -15,6 +15,7 @@ Output is not readline analogue, but term mode, so your terminal won't get clogg
 - **-** - Exclusive filter
 - **+** - Appending filter
 - **=** - Remove all filters
+- **C** - Stands for "Context", switches off/on all filters, helpful to get context of current line(which is first one on screen)
 - **W** - Wrap/Unwrap lines
 - **f/PageDown** - Page Down
 - **b/PageUp** - Page Up
@@ -22,13 +23,11 @@ Output is not readline analogue, but term mode, so your terminal won't get clogg
 - **G/End** - Go to last line
 - **q** - quit
 
-#### Keybindings TODOs:
-- Switch filters - disable all of them temorary to get context of current line and then reenable them
 
 ### Filters
 - Inclusive(&): Will keep only lines that match the pattern AND included by previous filters
-- Exclusive: Filters out lines that match the pattern  
-- Appending: Filters in lines that match pattern, even if they were excluded by previous filters  
+- Exclusive(-): Filters out lines that match the pattern
+- Appending(+): Filters in lines that match pattern, even if they were excluded by previous filters
 
 
 Filters can be chained, first append filter(if first to be used) will work as inclusive filter.   

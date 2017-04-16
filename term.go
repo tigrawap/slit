@@ -81,6 +81,18 @@ func (v *viewer) nextSearch(reverse bool) {
 	}
 }
 
+func (v *viewer) addFilter(filter filter) {
+	v.fetcher.filters = append(v.fetcher.filters, filter)
+	v.fetcher.filtersEnabled = true
+	v.buffer.reset(v.buffer.currentLine().Pos)
+}
+
+func (v *viewer) switchFilters() {
+	v.fetcher.filtersEnabled = !v.fetcher.filtersEnabled
+	v.buffer.reset(v.buffer.currentLine().Pos)
+	v.draw()
+}
+
 var stylesMap = map[uint8]termbox.Attribute{
 	1: termbox.AttrBold,
 }
@@ -98,7 +110,7 @@ func (v *viewer) draw() {
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		var tx int
 		data, err := v.buffer.getLine(dataLine)
-		if err == io.EOF{
+		if err == io.EOF {
 			break
 		}
 		var chars []rune
@@ -244,6 +256,8 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.fetcher.filters = v.fetcher.filters[:0]
 			v.buffer.reset(v.buffer.currentLine().Pos)
 			v.draw()
+		case 'C':
+			v.switchFilters()
 		}
 	} else {
 		switch ev.Key {
@@ -291,7 +305,13 @@ func (v *viewer) termGui() {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.SetOutputMode(termbox.Output256)
-	v.info = infobar{y: 0, width: 0, currentLine:&v.buffer.originalPos, totalLines:&v.fetcher.totalLines}
+	v.info = infobar{
+		y:              0,
+		width:          0,
+		currentLine:    &v.buffer.originalPos,
+		totalLines:     &v.fetcher.totalLines,
+		filtersEnabled: &v.fetcher.filtersEnabled,
+	}
 	v.focus = v
 	v.buffer = viewBuffer{
 		fetcher: v.fetcher,
@@ -301,8 +321,6 @@ loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
-			// Globals
-			//logging.Debug(ev.Key, ev.Mod, ev.Ch)
 			action := v.focus.processKey(ev)
 			switch action {
 			case ACTION_QUIT:
@@ -319,7 +337,7 @@ loop:
 			select {
 			case search := <-requestSearch:
 				v.processSearch(search)
-			case <- time.After(10 * time.Millisecond):
+			case <-time.After(10 * time.Millisecond):
 				continue
 			}
 		}
@@ -330,14 +348,11 @@ func (v *viewer) processSearch(search searchRequest) {
 	logging.Debug("Got search request")
 	switch search.mode {
 	case ibModeFilter:
-		v.fetcher.filters = append(v.fetcher.filters, &includeFilter{search.str, false})
-		v.buffer.reset(v.buffer.currentLine().Pos)
+		v.addFilter(&includeFilter{search.str, false})
 	case ibModeAppend:
-		v.fetcher.filters = append(v.fetcher.filters, &includeFilter{search.str, true})
-		v.buffer.reset(v.buffer.currentLine().Pos)
+		v.addFilter(&includeFilter{search.str, true})
 	case ibModeExclude:
-		v.fetcher.filters = append(v.fetcher.filters, &excludeFilter{search.str})
-		v.buffer.reset(v.buffer.currentLine().Pos)
+		v.addFilter(&excludeFilter{search.str})
 	case ibModeSearch:
 		v.search = search.str
 		v.forwardSearch = true
@@ -350,7 +365,7 @@ func (v *viewer) processSearch(search searchRequest) {
 	v.draw()
 }
 
-func reportSystemUsage(){
+func reportSystemUsage() {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 	logging.Debug(mem.Alloc)

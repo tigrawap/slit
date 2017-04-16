@@ -6,17 +6,17 @@ import (
 	"time"
 )
 
-var Config struct{
+var Config struct {
 	Enabled bool
 	LogPath string
 }
 
-func init(){
+func init() {
 	Config.LogPath = "/tmp/debug.log"
 }
 
 func Debug(l ...interface{}) {
-	if !Config.Enabled{
+	if !Config.Enabled {
 		return
 	}
 	f, _ := os.OpenFile(Config.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -25,12 +25,10 @@ func Debug(l ...interface{}) {
 	log.Println(l)
 }
 
-func Timeit(l ...interface{}) func(){
+func Timeit(l ...interface{}) func() {
 	start := time.Now()
 	Debug("->", l)
-	return func(){
+	return func() {
 		Debug("<- ", l, time.Since(start))
 	}
 }
-
-

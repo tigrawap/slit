@@ -21,13 +21,14 @@ const (
 )
 
 type infobar struct {
-	y           int
-	width       int
-	cx          int //cursor position
-	editBuffer  []rune
-	mode        infobarMode
-	totalLines  *int
-	currentLine *int
+	y              int
+	width          int
+	cx             int //cursor position
+	editBuffer     []rune
+	mode           infobarMode
+	totalLines     *int
+	currentLine    *int
+	filtersEnabled *bool
 }
 
 func (v *infobar) moveCursor(direction int) error {
@@ -56,6 +57,12 @@ func (v *infobar) statusBar() {
 	str := []rune(fmt.Sprintf("%d/%d", *v.currentLine+1, *v.totalLines))
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorBlack)
+	}
+	if !*v.filtersEnabled {
+		str := []rune("[-FILTERS]")
+		for i := 0; i < len(str) && i+1 < v.width; i++ {
+			termbox.SetCell(i+1, v.y, str[i], termbox.ColorMagenta, termbox.ColorBlack)
+		}
 	}
 }
 

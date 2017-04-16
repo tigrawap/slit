@@ -9,10 +9,6 @@ import (
 	"io"
 )
 
-var config struct {
-	filename string
-}
-
 func check(e error) {
 	if e != nil {
 		panic(e)

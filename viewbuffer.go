@@ -10,23 +10,23 @@ import (
 )
 
 type viewBuffer struct {
-	fetcher *fetcher
-	lock    sync.RWMutex // buffer updated in big chunks from fetcher with rolling back-forward copies
-	buffer  []line
-	pos     int // zero position in buffer
-	zeroLine int // Zero line to start displaying from if buffer is empty
-	window  int // height of window, buffer size calculated in multiplies of window
-	eofReached bool
+	fetcher     *fetcher
+	lock        sync.RWMutex // buffer updated in big chunks from fetcher with rolling back-forward copies
+	buffer      []line
+	pos         int // zero position in buffer
+	zeroLine    int // Zero line to start displaying from if buffer is empty
+	window      int // height of window, buffer size calculated in multiplies of window
+	eofReached  bool
 	originalPos int
 }
 
 func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
-	if b.pos+offset >= len(b.buffer)  {
-		if !b.eofReached{
+	if b.pos+offset >= len(b.buffer) {
+		if !b.eofReached {
 			b.fill()
 		}
 	}
-	if b.pos+offset >= len(b.buffer)  || len(b.buffer) == 0{
+	if b.pos+offset >= len(b.buffer) || len(b.buffer) == 0 {
 
 		b.eofReached = true
 		return ansi.NewAstring([]byte{}), io.EOF
@@ -69,7 +69,7 @@ func (b *viewBuffer) backFill() {
 	if b.zeroLine == 0 {
 		return // Nothing to backfill?
 	}
-	if len(b.buffer) != 0{
+	if len(b.buffer) != 0 {
 		prevLine = b.buffer[0].Pos - 1
 	}
 	if prevLine <= 0 {
@@ -135,7 +135,7 @@ func (b *viewBuffer) shift(direction int) {
 	if downShift() {
 		return
 	} else {
-		if len(b.buffer) == 0{
+		if len(b.buffer) == 0 {
 			return
 		}
 		b.pos = len(b.buffer) - 1
@@ -165,24 +165,24 @@ func (b *viewBuffer) searchBack(sub []rune) int {
 	return -1
 }
 
-func (b *viewBuffer) lastLine() line{
-	lastLine := len(b.buffer)-1
-	if lastLine != -1{
+func (b *viewBuffer) lastLine() line {
+	lastLine := len(b.buffer) - 1
+	if lastLine != -1 {
 		return b.buffer[lastLine]
-	}else{
+	} else {
 		logging.Debug("Fetching last line when no line available")
 		return line{}
 	}
 }
 
-func (b *viewBuffer) currentLine() line{
-	if len(b.buffer) == 0{
+func (b *viewBuffer) currentLine() line {
+	if len(b.buffer) == 0 {
 		return line{}
 	}
 	return b.buffer[b.pos]
 }
 
-func (b *viewBuffer) reset(toLine int){
+func (b *viewBuffer) reset(toLine int) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	b.eofReached = false
