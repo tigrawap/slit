@@ -11,16 +11,38 @@ const (
 )
 
 type filter interface {
-	isOk([]rune) filterAction
+	takeAction(str []rune, currentAction filterAction) filterAction
 }
 
-type includeOnlyFilter struct{
+type includeFilter struct{
+	sub []rune
+	append bool
+}
+
+
+type excludeFilter struct{
 	sub []rune
 }
 
-func (f *includeOnlyFilter) isOk(r []rune) filterAction{
+func (f *includeFilter) takeAction(r []rune, currentAction filterAction) filterAction{
+	if currentAction == filterInclude && f.append{
+		return filterInclude
+	}
+	if currentAction == filterExclude && !f.append{
+		return filterExclude
+	}
 	if runes.Index(r, f.sub) != -1{
 		return filterInclude
 	}
 	return filterExclude
+}
+
+func (f *excludeFilter) takeAction(r []rune, currentAction filterAction) filterAction{
+	if currentAction == filterExclude{
+		return filterExclude
+	}
+	if runes.Index(r, f.sub) != -1{
+		return filterExclude
+	}
+	return filterInclude
 }

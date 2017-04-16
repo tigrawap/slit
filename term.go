@@ -8,7 +8,8 @@ import (
 	"github.com/tigrawap/slit/runes"
 	"runtime"
 	"time"
-	"golang.org/x/text/search"
+	"io"
+	"code.cloudfoundry.org/bytefmt"
 )
 
 type viewer struct {
@@ -48,15 +49,6 @@ type Navigator interface {
 }
 
 func (v *viewer) searchForward() {
-	/*
-	Best of all worlds if:
-	1) First search in buffer, it may already be there, move to it's position if it's there
-	(Right now buffer is fixed to 2-3 windows, but it's subject to change
-	(fetch 1 window and display, fetch 20 more windows in background, so it might be quite big and search is efficient)
-	2) If not found - pass search to fetcher to get first line, then fill from that line
-	3) fetcher should search lines in parallel and sort found lines, return first occurence
-	4) If not found in buffer and not found via fetcher - no actions taken, so screen remains same
-	 */
 	index := -1
 	if index = v.buffer.searchForward(v.search); index != -1 {
 		v.navigate(index)
@@ -105,7 +97,10 @@ func (v *viewer) draw() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		var tx int
-		data := v.buffer.getLine(dataLine)
+		data, err := v.buffer.getLine(dataLine)
+		if err == io.EOF{
+			break
+		}
 		var chars []rune
 		var attrs []ansi.RuneAttr
 		if v.hOffset > len(data.Runes)-1 {
@@ -169,15 +164,6 @@ func (v *viewer) draw() {
 func (v *viewer) navigate(direction int) {
 	v.buffer.shift(direction)
 	v.draw()
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	logging.Debug(mem.Alloc)
-	logging.Debug("total alloc", mem.TotalAlloc)
-	logging.Debug("sys", mem.Sys)
-	logging.Debug(mem.HeapAlloc)
-	logging.Debug(mem.HeapSys)
-	logging.Debug("goroutines num", runtime.NumGoroutine())
-	runtime.GC()
 }
 
 func (v *viewer) navigateEnd() {
@@ -246,6 +232,18 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case '?':
 			v.focus = &v.info
 			v.info.reset(ibModeBackSearch)
+		case '+':
+			v.focus = &v.info
+			v.info.reset(ibModeAppend)
+		case '-':
+			v.focus = &v.info
+			v.info.reset(ibModeExclude)
+		case 'M':
+			reportSystemUsage()
+		case '=':
+			v.fetcher.filters = v.fetcher.filters[:0]
+			v.buffer.reset(v.buffer.currentLine().Pos)
+			v.draw()
 		}
 	} else {
 		switch ev.Key {
@@ -321,7 +319,7 @@ loop:
 			select {
 			case search := <-requestSearch:
 				v.processSearch(search)
-			case time.After(10 * time.Millisecond):
+			case <- time.After(10 * time.Millisecond):
 				continue
 			}
 		}
@@ -330,14 +328,36 @@ loop:
 }
 func (v *viewer) processSearch(search searchRequest) {
 	logging.Debug("Got search request")
-	if search.mode == ibModeFilter {
-		v.fetcher.filters = append(v.fetcher.filters, &includeOnlyFilter{search.str})
+	switch search.mode {
+	case ibModeFilter:
+		v.fetcher.filters = append(v.fetcher.filters, &includeFilter{search.str, false})
 		v.buffer.reset(v.buffer.currentLine().Pos)
-		// request filter
-	} else {
+	case ibModeAppend:
+		v.fetcher.filters = append(v.fetcher.filters, &includeFilter{search.str, true})
+		v.buffer.reset(v.buffer.currentLine().Pos)
+	case ibModeExclude:
+		v.fetcher.filters = append(v.fetcher.filters, &excludeFilter{search.str})
+		v.buffer.reset(v.buffer.currentLine().Pos)
+	case ibModeSearch:
 		v.search = search.str
-		v.forwardSearch = search.mode == ibModeSearch
+		v.forwardSearch = true
+		v.nextSearch(false)
+	case ibModeBackSearch:
+		v.search = search.str
+		v.forwardSearch = false
 		v.nextSearch(false)
 	}
 	v.draw()
+}
+
+func reportSystemUsage(){
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	logging.Debug(mem.Alloc)
+	logging.Debug("Total alloc", bytefmt.ByteSize(mem.TotalAlloc))
+	logging.Debug("Sys", bytefmt.ByteSize(mem.Sys))
+	logging.Debug("Heap alloc", bytefmt.ByteSize(mem.HeapAlloc))
+	logging.Debug("Heap sys", bytefmt.ByteSize(mem.HeapSys))
+	logging.Debug("Goroutines num", runtime.NumGoroutine())
+	runtime.GC()
 }

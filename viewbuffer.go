@@ -6,6 +6,7 @@ import (
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/runes"
+	"io"
 )
 
 type viewBuffer struct {
@@ -15,16 +16,21 @@ type viewBuffer struct {
 	pos     int // zero position in buffer
 	zeroLine int // Zero line to start displaying from if buffer is empty
 	window  int // height of window, buffer size calculated in multiplies of window
+	eofReached bool
 }
 
-func (b *viewBuffer) getLine(offset int) ansi.Astring {
-	if b.pos+offset >= len(b.buffer) {
-		b.fill() //TODO: this should go async
+func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
+	if b.pos+offset >= len(b.buffer)  {
+		if !b.eofReached{
+			b.fill()
+		}
 	}
-	if b.pos+offset >= len(b.buffer) {
-		return ansi.NewAstring([]byte{})
+	if b.pos+offset >= len(b.buffer)  || len(b.buffer) == 0{
+
+		b.eofReached = true
+		return ansi.NewAstring([]byte{}), io.EOF
 	}
-	return b.buffer[b.pos+offset].Str // TODO: What happens if we reached the end? panic!
+	return b.buffer[b.pos+offset].Str, nil // TODO: What happens if we reached the end? panic!
 }
 
 func (b *viewBuffer) fill() {
@@ -45,6 +51,7 @@ func (b *viewBuffer) fill() {
 	}
 	tail := len(b.buffer[:b.pos])
 	if tail > b.window*3 { // tail is too long, trim it
+		b.eofReached = false
 		cutFrom := tail - b.window*3
 		b.buffer = b.buffer[cutFrom:]
 		b.pos -= cutFrom
@@ -54,7 +61,7 @@ func (b *viewBuffer) fill() {
 func (b *viewBuffer) backFill() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
-	logging.Debug("trying to backfill")
+	logging.Debug("Trying to backfill")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	prevLine := b.zeroLine
@@ -67,7 +74,6 @@ func (b *viewBuffer) backFill() {
 	if prevLine <= 0 {
 		return // still nothing to backfill
 	}
-	logging.Debug("prevLine", prevLine)
 	dataChan := b.fetcher.GetBack(ctx, prevLine)
 	newData := make([]line, 0, b.window*3)
 	for data := range dataChan {
@@ -91,7 +97,6 @@ func (b *viewBuffer) backFill() {
 		b.buffer[len(newData)-1-i] = newData[i] // Inserting values in reverse order
 	}
 	b.pos += len(newData)
-	logging.Debug("len", len(b.buffer), "cap", cap(b.buffer))
 
 }
 
@@ -126,6 +131,9 @@ func (b *viewBuffer) shift(direction int) {
 	if downShift() {
 		return
 	} else {
+		if len(b.buffer) == 0{
+			return
+		}
 		b.pos = len(b.buffer) - 1
 	}
 }
@@ -154,7 +162,13 @@ func (b *viewBuffer) searchBack(sub []rune) int {
 }
 
 func (b *viewBuffer) lastLine() line{
-	return b.buffer[len(b.buffer)-1]
+	lastLine := len(b.buffer)-1
+	if lastLine != -1{
+		return b.buffer[lastLine]
+	}else{
+		logging.Debug("Fetching last line when no line available")
+		return line{}
+	}
 }
 
 func (b *viewBuffer) currentLine() line{
@@ -167,6 +181,7 @@ func (b *viewBuffer) currentLine() line{
 func (b *viewBuffer) reset(toLine int){
 	b.lock.Lock()
 	defer b.lock.Unlock()
+	b.eofReached = false
 	b.buffer = b.buffer[:0]
 	b.pos = 0
 	b.zeroLine = toLine

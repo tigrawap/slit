@@ -18,7 +18,6 @@ type fetcher struct {
 	reader        io.ReadSeeker
 	lineReader    *bufio.Reader
 	lineReaderPos int
-	read          bool // Indicates whether lineMap is complete
 	totalLines    int  //Total lines currently fetched
 	filters       []filter
 }
@@ -31,18 +30,15 @@ func (f *fetcher) filteredLine(l posLine) (line) {
 	}
 	var action filterAction
 	for _, filter := range f.filters {
-		action = filter.isOk(str.Runes)
-		switch action {
-		case filterNoaction:
-			continue
-		case filterInclude:
-			return line{str, l.pos}
-		case filterExclude:
-			return line{Pos:-1}
-
-		}
+		action = filter.takeAction(str.Runes, action)
 	}
-	return line{str, l.pos}
+	switch action {
+	case filterExclude:
+		return line{Pos: -1}
+	default:
+		return line{str, l.pos}
+	}
+
 }
 
 func newFetcher(reader io.ReadSeeker) *fetcher {
@@ -94,13 +90,13 @@ func (f *fetcher) seek(to int) {
 			break
 		}
 		if err == io.EOF {
-			panic("Seeking out of bounds") // TODO: This should change to return error later.
+			panic("Seeking out of bounds")
 		}
 	}
 	return
 }
 
-//reads and returns one line from reader
+//reads and returns one line, position and error, which can only be io.EOF
 func (f *fetcher) readline() ([]byte, int, error) {
 	str, err := f.lineReader.ReadBytes('\n')
 	pos := f.lineReaderPos
@@ -113,7 +109,6 @@ func (f *fetcher) readline() ([]byte, int, error) {
 		return str[:len(str)-1], pos, err //TODO: Handle \r for windows logs?
 	}
 	if err == io.EOF {
-		f.read = true
 		return str, pos, err
 	} else {
 		panic(err)
@@ -136,7 +131,7 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 		flush := func() {
 			wg.Wait()
 			for i := 0; i < bLen; i++ {
-				if buffer[i].Pos == -1{
+				if buffer[i].Pos == -1 {
 					continue //filtered out
 				}
 				select {
@@ -156,7 +151,6 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 				return
 			case l, ok = <-feeder:
 				if !ok { //feeder closed
-					logging.Timeit("Flushing by close")
 					return
 				}
 				wg.Add(1)
@@ -167,7 +161,6 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 				bLen += 1
 			}
 			if bLen == bufSize {
-				logging.Timeit("Flushing by size")
 				flush()
 			}
 		}
@@ -260,15 +253,14 @@ type posLine struct {
 }
 
 func (f *fetcher) lastLine() int {
-	if !f.read {
-		f.seek(f.totalLines - 1)
-		for {
-			_, _, err := f.readline()
-			if err == io.EOF {
-				return f.totalLines - 1
-			}
+	f.seek(f.totalLines - 1)
+	for {
+		_, _, err := f.readline()
+		if err == io.EOF {
+			return f.totalLines - 1
 		}
 	}
+	//}
 	return f.totalLines - 1
 }
 

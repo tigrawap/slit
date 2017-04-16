@@ -26,7 +26,7 @@ func NewAstring(src []byte) Astring {
 	var end int
 	var attr RuneAttr
 	var r rune
-	var b byte
+	//var b byte
 
 	rr := bytes.Runes(src)
 	max := len(rr)
@@ -37,7 +37,7 @@ func NewAstring(src []byte) Astring {
 	ri := 0
 	for i := 0; i < len(rr); i++ {
 		r = rr[i]
-		if b == 27 && i != max-1 { // [27 91] is control sequence
+		if r == 27 && i != max-1 { // [27 91] is control sequence
 			if rr[i+1] == 91 {
 				// TODO: Should be sequence(regex?-based, m can be something else)
 				end = runes.IndexRune(rr[i+2:], 'm')

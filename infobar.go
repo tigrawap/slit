@@ -15,6 +15,8 @@ const (
 	ibModeSearch
 	ibModeBackSearch
 	ibModeFilter
+	ibModeAppend
+	ibModeExclude
 )
 
 type infobar struct {
@@ -65,6 +67,12 @@ func (v *infobar) draw() {
 		v.showSearch()
 	case ibModeFilter:
 		termbox.SetCell(0, v.y, '&', termbox.ColorGreen, termbox.ColorBlack)
+		v.showSearch()
+	case ibModeExclude:
+		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorBlack)
+		v.showSearch()
+	case ibModeAppend:
+		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorBlack)
 		v.showSearch()
 	case ibModeStatus:
 		v.statusBar()
