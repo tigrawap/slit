@@ -106,7 +106,7 @@ var stylesMap = map[uint8]termbox.Attribute{
 //}
 
 func (v *viewer) draw() {
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	termbox.Clear(termbox.ColorBlack, termbox.ColorBlack)
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		var tx int
 		data, err := v.buffer.getLine(dataLine)
