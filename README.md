@@ -1,4 +1,4 @@
-##**Slit** - modern $PAGER for noisy logs
+## **Slit** - modern $PAGER for noisy logs
 
 
 The goal is to get **more** from logs, then **most** of other pagers can do. And do so in **less** time. Basically slit is a verb, applied to logs
@@ -7,7 +7,7 @@ The goal is to get **more** from logs, then **most** of other pagers can do. And
 Supports opening single(for now) file or retrieving input from stdin  
 Output is not readline analogue, but term mode, so your terminal won't get clogged by all the logs you are reading
 
-###Keybindings:  
+### Keybindings:  
 
 - **/** - forward search  
 - **?** - backsearch  
@@ -37,7 +37,7 @@ Chaining of filters gives ability to filter out all the noise dynamically and ge
 
 Imagine you have huge log file with hundreds of thousands of lines from multiple threads.      
 And all that you are interested in are logs from "Thread-10, "MainThread", not interested in "send" and "receive" messages  
-In addition, you want to see Exception. Even if it occured during previously excluded actions
+In addition, you want to see Exception. Even if it occurred during previously excluded actions
 
 
 Such chain of filters will give required result:  
@@ -51,8 +51,8 @@ Such chain of filters will give required result:
 
 ```
 
-####Filter TODOs:
-- Complex include/exclude filters, that will allow: (DEBUG OR INFO) AND NOT (send OR recieve OR "pipe closed") 
+#### Filter TODOs:
+- Complex include/exclude filters, that will allow: (DEBUG OR INFO) AND NOT (send OR receive OR "pipe closed") 
 - Filters menu for overviewing current filters, removal, reordering or disable some temporary
 
 MIT License
