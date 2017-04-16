@@ -1,21 +1,21 @@
 ## **Slit** - modern $PAGER for noisy logs
 
 
-The goal is to get **more** from logs, then **most** of other pagers can do. And do so in **less** time. Basically slit is a verb, applied to logs
+The goal is to get **more** from logs than **most** of other pagers can. And to do so in **less** time. Basically slit is a verb, applied to logs.
 
 
-Supports opening single(for now) file or retrieving input from stdin  
-Output is not readline analogue, but term mode, so your terminal won't get clogged by all the logs you are reading
+Slit supports opening a single file (for now), or retrieving input from stdin
+Output is not readline-compatible; It is runs in terminal mode, which means your terminal doesn't get clogged by all the logs you are reading.
 
 ### Keybindings:  
 
 - **/** - forward search  
 - **?** - backsearch  
-- **&** - Inclusive filter
-- **-** - Exclusive filter
-- **+** - Appending filter
+- **&** - Filter: intersect
+- **-** - Filter: exclude
+- **+** - Filter: union
 - **=** - Remove all filters
-- **C** - Stands for "Context", switches off/on all filters, helpful to get context of current line(which is first one on screen)
+- **C** - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
 - **W** - Wrap/Unwrap lines
 - **f/PageDown** - Page Down
 - **b/PageUp** - Page Up
@@ -30,17 +30,16 @@ Output is not readline analogue, but term mode, so your terminal won't get clogg
 - Appending(+): Filters in lines that match pattern, even if they were excluded by previous filters
 
 
-Filters can be chained, first append filter(if first to be used) will work as inclusive filter.   
-When adding filters position line(first on screen) will be the same(if possible) as before adding filter
+Filters can be chained - The first 'append' filter (if it is the first to be used) will work as inclusive filter.
+When adding filters the active line position (at top of screen) will remain the same (as possible).
 
-Chaining of filters gives ability to filter out all the noise dynamically and get what actually is needed
+Chaining of filters gives ability to filter out all the 'noise' dynamically, and get to what you're actually looking for.
 
 Imagine you have huge log file with hundreds of thousands of lines from multiple threads.      
 And all that you are interested in are logs from "Thread-10, "MainThread", not interested in "send" and "receive" messages  
-In addition, you want to see Exception. Even if it occurred during previously excluded actions
+In addition, you want to see "Exception", even if it is on line that were excluded by previous filters.
 
-
-Such chain of filters will give required result:  
+The following chain of filters will output the expected result:
 
 ```
 &Thread-10  
@@ -56,6 +55,3 @@ Such chain of filters will give required result:
 - Filters menu for overviewing current filters, removal, reordering or disable some temporary
 
 MIT License
-
-
-
