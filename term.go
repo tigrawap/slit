@@ -291,7 +291,7 @@ func (v *viewer) termGui() {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.SetOutputMode(termbox.Output256)
-	v.info = infobar{y: 0, width: 0}
+	v.info = infobar{y: 0, width: 0, currentLine:&v.buffer.originalPos, totalLines:&v.fetcher.totalLines}
 	v.focus = v
 	v.buffer = viewBuffer{
 		fetcher: v.fetcher,

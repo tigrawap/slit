@@ -39,6 +39,8 @@ func main() {
 		check(err)
 		f, err = os.Open(tmpFile.Name())
 		check(err)
+		defer os.Remove(tmpFile.Name())
+		defer tmpFile.Close()
 		defer f.Close()
 		go io.Copy(tmpFile, os.Stdin)
 	} else {

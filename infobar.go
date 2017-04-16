@@ -4,6 +4,7 @@ import (
 	"github.com/nsf/termbox-go"
 	"errors"
 	"github.com/tigrawap/slit/runes"
+	"fmt"
 )
 
 const promtLength = 1
@@ -20,11 +21,13 @@ const (
 )
 
 type infobar struct {
-	y          int
-	width      int
-	cx         int //cursor position
-	editBuffer []rune
-	mode       infobarMode
+	y           int
+	width       int
+	cx          int //cursor position
+	editBuffer  []rune
+	mode        infobarMode
+	totalLines  *int
+	currentLine *int
 }
 
 func (v *infobar) moveCursor(direction int) error {
@@ -48,7 +51,11 @@ func (v *infobar) reset(mode infobarMode) {
 
 func (v *infobar) statusBar() {
 	for i := 0; i < v.width; i++ {
-		termbox.SetCell(i, v.y, ' ', termbox.ColorBlack, termbox.ColorGreen)
+		termbox.SetCell(i, v.y, ' ', termbox.ColorBlack, termbox.ColorBlack)
+	}
+	str := []rune(fmt.Sprintf("%d/%d", *v.currentLine+1, *v.totalLines))
+	for i := 0; i < len(str); i++ {
+		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorBlack)
 	}
 }
 

@@ -17,6 +17,7 @@ type viewBuffer struct {
 	zeroLine int // Zero line to start displaying from if buffer is empty
 	window  int // height of window, buffer size calculated in multiplies of window
 	eofReached bool
+	originalPos int
 }
 
 func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
@@ -102,6 +103,9 @@ func (b *viewBuffer) backFill() {
 
 func (b *viewBuffer) shift(direction int) {
 	logging.Debug("direction", direction)
+	defer func() {
+		b.originalPos = b.currentLine().Pos
+	}()
 	if direction < 0 {
 		logging.Debug("targeting ", b.pos+direction)
 		if b.pos+direction < 0 {
@@ -185,4 +189,5 @@ func (b *viewBuffer) reset(toLine int){
 	b.buffer = b.buffer[:0]
 	b.pos = 0
 	b.zeroLine = toLine
+	b.originalPos = toLine
 }
