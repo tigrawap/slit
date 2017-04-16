@@ -298,7 +298,7 @@ func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
 					continue
 				}
 				select {
-				case ret <- line{ansi.NewAstring(tmpLines[i].b), tmpLines[i].pos}: //TODO: paralellize
+				case ret <- l: //TODO: paralellize
 				case <-ctx.Done():
 					return
 				}
