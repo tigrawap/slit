@@ -141,6 +141,7 @@ func (v *viewer) draw() {
 		hlChars = 0
 		data, err := v.buffer.getLine(dataLine)
 		if err == io.EOF {
+			logging.Debug("aborting")
 			break
 		}
 		if v.hOffset > len(data.Runes)-1 {
@@ -327,6 +328,7 @@ type infobarRequest struct {
 }
 
 var requestSearch = make(chan infobarRequest)
+var requestRefresh = make(chan struct{})
 
 func (v *viewer) termGui() {
 	err := termbox.Init()
@@ -348,6 +350,7 @@ func (v *viewer) termGui() {
 		fetcher: v.fetcher,
 	}
 	v.resize(termbox.Size())
+	go v.refreshIfStdin()
 loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -368,6 +371,9 @@ loop:
 			select {
 			case search := <-requestSearch:
 				v.processInfobarRequest(search)
+			case <-requestRefresh:
+				v.buffer.refresh()
+				v.draw()
 			case <-time.After(10 * time.Millisecond):
 				continue
 			}
@@ -375,6 +381,19 @@ loop:
 	}
 
 }
+
+func (v *viewer) refreshIfStdin() {
+	for len(v.buffer.buffer) == 0 && v.fetcher.totalLines == 0 {
+		if !config.stdin || config.stdinFinished {
+			break
+		}
+		logging.Debug("requesting refresh")
+		go termbox.Interrupt()
+		requestRefresh <- struct{}{}
+		time.Sleep(300 * time.Millisecond)
+	}
+}
+
 func (v *viewer) processInfobarRequest(search infobarRequest) {
 	defer logging.Timeit("Got search request")()
 	switch search.mode {
@@ -394,10 +413,10 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 		v.nextSearch(false)
 	case ibModeKeepCharacters:
 		keep, err := strconv.Atoi(string(search.str))
-		if err != nil{
+		if err != nil {
 			logging.Debug("Err: Keepchar: ", err)
 			v.keepChars = 0
-		}else{
+		} else {
 			v.keepChars = keep
 		}
 	}

@@ -21,13 +21,10 @@ type viewBuffer struct {
 }
 
 func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
-	if b.pos+offset >= len(b.buffer) {
-		if !b.eofReached {
-			b.fill()
-		}
+	if b.pos+offset >= len(b.buffer) && !b.eofReached {
+		b.fill()
 	}
 	if b.pos+offset >= len(b.buffer) || len(b.buffer) == 0 {
-
 		b.eofReached = true
 		return ansi.NewAstring([]byte{}), io.EOF
 	}
@@ -37,6 +34,7 @@ func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
 func (b *viewBuffer) fill() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
+	logging.Debug("Filling")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	line := b.zeroLine
@@ -170,7 +168,6 @@ func (b *viewBuffer) lastLine() line {
 	if lastLine != -1 {
 		return b.buffer[lastLine]
 	} else {
-		logging.Debug("Fetching last line when no line available")
 		return line{}
 	}
 }
@@ -185,9 +182,13 @@ func (b *viewBuffer) currentLine() line {
 func (b *viewBuffer) reset(toLine int) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
-	b.eofReached = false
 	b.buffer = b.buffer[:0]
 	b.pos = 0
 	b.zeroLine = toLine
 	b.originalPos = toLine
+	b.eofReached = false
+}
+
+func (b *viewBuffer) refresh() {
+	b.reset(b.currentLine().Pos)
 }

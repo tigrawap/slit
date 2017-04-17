@@ -21,6 +21,8 @@ func init() {
 
 var config struct{
 	outPath string
+	stdin bool
+	stdinFinished bool
 }
 
 func main() {
@@ -32,6 +34,8 @@ func main() {
 	var f *os.File
 	var err error
 	if isPipe(stdinStat) {
+		config.stdin = true
+		config.stdinFinished = false
 		if isPipe(stdoutStat) {
 			outputToStdout(os.Stdin)
 			return
@@ -56,7 +60,10 @@ func main() {
 		check(err)
 		defer cacheFile.Close()
 		defer f.Close()
-		go io.Copy(cacheFile, os.Stdin)
+		go func(){
+			io.Copy(cacheFile, os.Stdin)
+			config.stdinFinished = true
+		}()
 	} else {
 		if flag.NArg() != 1 {
 			fmt.Fprintln(os.Stderr,"Only viewing of one file or from STDIN is supported")
