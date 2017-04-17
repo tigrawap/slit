@@ -119,8 +119,8 @@ func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data 
 			}
 			keptChars := make([]rune, shift, shift+len(chars))
 			keptAttrs := make([]ansi.RuneAttr, shift, shift+len(chars))
-			copy(keptChars, data.Runes[:max(0, min(shift, len(data.Runes)))])
-			copy(keptAttrs, data.Attrs[:max(0, min(shift, len(data.Runes)))])
+			copy(keptChars, data.Runes[:min(shift, len(data.Runes))])
+			copy(keptAttrs, data.Attrs[:min(shift, len(data.Runes))])
 			for i, _ := range keptAttrs {
 				attr := &keptAttrs[i]
 				attr.Fg = ansi.FgColor(ansi.ColorBlue)
