@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"os"
-	"errors"
 	"github.com/tigrawap/slit/logging"
 	"io/ioutil"
 	"io"
+	"fmt"
 )
 
 func check(e error) {
@@ -41,7 +41,8 @@ func main() {
 		go io.Copy(tmpFile, os.Stdin)
 	} else {
 		if flag.NArg() != 1 {
-			panic(errors.New("Viewing of single file only supported for now"))
+			fmt.Fprintln(os.Stderr,"Only viewing of one file or from STDIN is supported")
+			os.Exit(1)
 		}
 		filename := flag.Arg(0)
 		f, err = os.Open(filename)
