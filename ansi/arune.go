@@ -18,6 +18,35 @@ type Astring struct {
 	Attrs []RuneAttr
 }
 
+
+
+
+type Style uint8
+const (
+	StyleNormal Style = iota
+	StyleBold
+)
+
+type Color uint8
+const (
+	ColorBlack Color = iota
+	ColorRed
+	ColorGreen
+	ColorYellow
+	ColorBlue
+	ColorMagenta
+	ColorCyan
+	ColorGray
+)
+
+func FgColor(color Color) uint8{
+	return uint8(color) + 30
+}
+
+func BgColor(color Color) uint8{
+	return uint8(color) + 40
+}
+
 //Returns new Astring, struct containing bytes converted to runes and ansi attributes per rune
 func NewAstring(src []byte) Astring {
 	var distance int

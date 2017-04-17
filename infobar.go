@@ -12,12 +12,13 @@ const promtLength = 1
 type infobarMode uint
 
 const (
-	ibModeStatus     infobarMode = iota
+	ibModeStatus         infobarMode = iota
 	ibModeSearch
 	ibModeBackSearch
 	ibModeFilter
 	ibModeAppend
 	ibModeExclude
+	ibModeKeepCharacters
 )
 
 type infobar struct {
@@ -88,6 +89,9 @@ func (v *infobar) draw() {
 	case ibModeAppend:
 		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorBlack)
 		v.showSearch()
+	case ibModeKeepCharacters:
+		termbox.SetCell(0, v.y, 'K', termbox.ColorGreen, termbox.ColorBlack)
+		v.showSearch()
 	case ibModeStatus:
 		v.statusBar()
 	default:
@@ -150,7 +154,7 @@ func (v *infobar) requestSearch() {
 	searchMode := v.mode
 	go func() {
 		go func() {
-			requestSearch <- searchRequest{searchString, searchMode}
+			requestSearch <- infobarRequest{searchString, searchMode}
 		}()
 		termbox.Interrupt()
 	}()

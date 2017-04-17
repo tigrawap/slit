@@ -21,6 +21,7 @@ Output is not readline-compatible; It is runs in terminal mode, which means your
 - **b/PageUp** - Page Up
 - **g/Home** - Go to first line
 - **G/End** - Go to last line
+- **K** - Keep N first characters(usually containing timestamp) when navigating horizontally 
 - **q** - quit
 
 

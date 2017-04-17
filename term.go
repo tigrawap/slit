@@ -10,6 +10,7 @@ import (
 	"time"
 	"io"
 	"code.cloudfoundry.org/bytefmt"
+	"strconv"
 )
 
 type viewer struct {
@@ -25,6 +26,7 @@ type viewer struct {
 	forwardSearch bool
 	search        []rune
 	buffer        viewBuffer
+	keepChars     int
 }
 
 type action uint
@@ -56,6 +58,7 @@ func (v *viewer) searchForward() {
 	}
 	if index = v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, v.search); index != -1 {
 		v.buffer.reset(index)
+		v.draw()
 	}
 }
 
@@ -67,6 +70,7 @@ func (v *viewer) searchBack() {
 	}
 	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos, v.search); index != -1 {
 		v.buffer.reset(index)
+		v.draw()
 	}
 }
 
@@ -105,16 +109,48 @@ var stylesMap = map[uint8]termbox.Attribute{
 //	return data.Str
 //}
 
+func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
+	if v.keepChars != 0 && !v.wrap {
+		shift := min(v.hOffset, v.keepChars)
+		if shift != 0 {
+			if shift < len(chars) {
+				chars = chars[shift:]
+				attrs = attrs[shift:]
+			}
+			keptChars := make([]rune, shift, shift+len(chars))
+			keptAttrs := make([]ansi.RuneAttr, shift, shift+len(chars))
+			copy(keptChars, data.Runes[:max(0, min(shift, len(data.Runes)-1))])
+			copy(keptAttrs, data.Attrs[:max(0, min(shift, len(data.Runes)-1))])
+			for i, _ := range keptAttrs {
+				attr := &keptAttrs[i]
+				attr.Fg = ansi.FgColor(ansi.ColorBlue)
+				//attr.Bg = ansi.BgColor(ansi.ColorBlue)
+				//attr.Style = uint8(ansi.StyleBold)
+			}
+			chars = append(keptChars, chars...)
+			attrs = append(keptAttrs, attrs...)
+		}
+	}
+	return chars, attrs
+}
+
 func (v *viewer) draw() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	var chars []rune
+	var attrs []ansi.RuneAttr
+	var attr ansi.RuneAttr
+	var bg termbox.Attribute
+	var fg termbox.Attribute
+	var hlIndices []int
+	var hlChars int
+	var tx int
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
-		var tx int
+		tx = 0
+		hlChars = 0
 		data, err := v.buffer.getLine(dataLine)
 		if err == io.EOF {
 			break
 		}
-		var chars []rune
-		var attrs []ansi.RuneAttr
 		if v.hOffset > len(data.Runes)-1 {
 			chars = data.Runes[:0]
 			attrs = data.Attrs[:0]
@@ -122,17 +158,16 @@ func (v *viewer) draw() {
 			chars = data.Runes[v.hOffset:]
 			attrs = data.Attrs[v.hOffset:]
 		}
-		var hlIndices []int
-		hlChars := 0
+		chars, attrs = v.replaceWithKeptChars(chars, attrs, data)
 		if len(v.search) != 0 {
 			hlIndices = runes.IndexAll(chars, v.search)
 		} else {
 			hlIndices = []int{}
 		}
 		for i, char := range chars {
-			attr := attrs[i]
-			bg := termbox.ColorDefault
-			fg := termbox.ColorDefault
+			attr = attrs[i]
+			bg = termbox.ColorDefault
+			fg = termbox.ColorDefault
 			if len(hlIndices) != 0 && hlChars == 0 {
 				if hlIndices[0] == i {
 					hlIndices = hlIndices[1:]
@@ -146,7 +181,7 @@ func (v *viewer) draw() {
 			if attr.Fg != 0 {
 				fg = termbox.Attribute(attr.Fg-30+1) | stylesMap[attr.Style]
 			}
-			if bg == termbox.ColorBlack { // If already highlighted by search - dont use original color
+			if bg == termbox.ColorDefault { // If already highlighted by search - dont use original color
 				if attr.Bg != 0 {
 					bg = termbox.Attribute(attr.Bg - 40 + 1)
 				}
@@ -258,6 +293,10 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.draw()
 		case 'C':
 			v.switchFilters()
+		case 'K':
+			v.focus = &v.info
+			v.info.reset(ibModeKeepCharacters)
+
 		}
 	} else {
 		switch ev.Key {
@@ -290,12 +329,12 @@ func (v *viewer) resize(width, height int) {
 	v.draw()
 }
 
-type searchRequest struct {
+type infobarRequest struct {
 	str  []rune
 	mode infobarMode
 }
 
-var requestSearch = make(chan searchRequest)
+var requestSearch = make(chan infobarRequest)
 
 func (v *viewer) termGui() {
 	err := termbox.Init()
@@ -336,7 +375,7 @@ loop:
 		case termbox.EventInterrupt:
 			select {
 			case search := <-requestSearch:
-				v.processSearch(search)
+				v.processInfobarRequest(search)
 			case <-time.After(10 * time.Millisecond):
 				continue
 			}
@@ -344,7 +383,7 @@ loop:
 	}
 
 }
-func (v *viewer) processSearch(search searchRequest) {
+func (v *viewer) processInfobarRequest(search infobarRequest) {
 	defer logging.Timeit("Got search request")()
 	switch search.mode {
 	case ibModeFilter:
@@ -361,6 +400,14 @@ func (v *viewer) processSearch(search searchRequest) {
 		v.search = search.str
 		v.forwardSearch = false
 		v.nextSearch(false)
+	case ibModeKeepCharacters:
+		keep, err := strconv.Atoi(string(search.str))
+		if err != nil{
+			logging.Debug("Err: Keepchar: ", err)
+			v.keepChars = 0
+		}else{
+			v.keepChars = keep
+		}
 	}
 	v.draw()
 }
