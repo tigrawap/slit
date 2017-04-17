@@ -101,14 +101,6 @@ var stylesMap = map[uint8]termbox.Attribute{
 	1: termbox.AttrBold,
 }
 
-//func (v *viewer) getLine(line int) ansi.Astring {
-//	ctx, cancel := context.WithCancel(context.Background())
-//	defer cancel()
-//	dataChan := v.fetcher.Get(ctx, int32(line), true)
-//	data := <-dataChan
-//	return data.Str
-//}
-
 func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
 	if v.keepChars != 0 && !v.wrap {
 		shift := min(v.hOffset, v.keepChars)

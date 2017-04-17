@@ -19,7 +19,12 @@ func init() {
 	logging.Config.LogPath = "/tmp/slit.log"
 }
 
+var config struct{
+	outPath string
+}
+
 func main() {
+	flag.StringVar(&config.outPath, "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
 	flag.BoolVar(&logging.Config.Enabled, "debug", false, "Enables debug messages, written to /tmp/slit.log")
 	flag.Parse()
 	stdinStat, _ := os.Stdin.Stat()
@@ -31,14 +36,27 @@ func main() {
 			outputToStdout(os.Stdin)
 			return
 		}
-		tmpFile, err := ioutil.TempFile("/tmp", "slit_")
+		var cacheFile *os.File
+		if config.outPath == ""{
+			cacheFile, err = ioutil.TempFile("/tmp", "slit_")
+			check(err)
+			defer os.Remove(cacheFile.Name())
+		}else{
+			openFile := func() error{
+				cacheFile, err = os.OpenFile(config.outPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+				return err
+			}
+			if err = openFile(); os.IsExist(err){
+				os.Remove(config.outPath)
+				err = openFile()
+			}
+			check(err)
+		}
+		f, err = os.Open(cacheFile.Name())
 		check(err)
-		f, err = os.Open(tmpFile.Name())
-		check(err)
-		defer os.Remove(tmpFile.Name())
-		defer tmpFile.Close()
+		defer cacheFile.Close()
 		defer f.Close()
-		go io.Copy(tmpFile, os.Stdin)
+		go io.Copy(cacheFile, os.Stdin)
 	} else {
 		if flag.NArg() != 1 {
 			fmt.Fprintln(os.Stderr,"Only viewing of one file or from STDIN is supported")
