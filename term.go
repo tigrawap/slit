@@ -305,6 +305,8 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigate(-v.height)
 		case termbox.KeyPgdn:
 			v.navigate(+v.height)
+		case termbox.KeySpace:
+			v.navigate(+v.height)
 		case termbox.KeyHome:
 			v.navigateStart()
 		case termbox.KeyEnd:

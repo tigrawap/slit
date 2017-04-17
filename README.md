@@ -17,7 +17,7 @@ Output is not readline-compatible; It is runs in terminal mode, which means your
 - **=** - Remove all filters
 - **C** - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
 - **W** - Wrap/Unwrap lines
-- **f/PageDown** - Page Down
+- **f/PageDown/Space** - Page Down
 - **b/PageUp** - Page Up
 - **g/Home** - Go to first line
 - **G/End** - Go to last line
