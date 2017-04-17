@@ -106,7 +106,7 @@ var stylesMap = map[uint8]termbox.Attribute{
 //}
 
 func (v *viewer) draw() {
-	termbox.Clear(termbox.ColorBlack, termbox.ColorBlack)
+	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		var tx int
 		data, err := v.buffer.getLine(dataLine)
@@ -131,8 +131,8 @@ func (v *viewer) draw() {
 		}
 		for i, char := range chars {
 			attr := attrs[i]
-			bg := termbox.ColorBlack
-			fg := termbox.ColorWhite
+			bg := termbox.ColorDefault
+			fg := termbox.ColorDefault
 			if len(hlIndices) != 0 && hlChars == 0 {
 				if hlIndices[0] == i {
 					hlIndices = hlIndices[1:]
@@ -345,7 +345,7 @@ loop:
 
 }
 func (v *viewer) processSearch(search searchRequest) {
-	logging.Debug("Got search request")
+	defer logging.Timeit("Got search request")()
 	switch search.mode {
 	case ibModeFilter:
 		v.addFilter(&includeFilter{search.str, false})

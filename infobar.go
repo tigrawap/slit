@@ -52,16 +52,16 @@ func (v *infobar) reset(mode infobarMode) {
 
 func (v *infobar) statusBar() {
 	for i := 0; i < v.width; i++ {
-		termbox.SetCell(i, v.y, ' ', termbox.ColorBlack, termbox.ColorBlack)
+		termbox.SetCell(i, v.y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
 	str := []rune(fmt.Sprintf("%d/%d", *v.currentLine+1, *v.totalLines))
 	for i := 0; i < len(str); i++ {
-		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorBlack)
+		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
 	}
 	if !*v.filtersEnabled {
 		str := []rune("[-FILTERS]")
 		for i := 0; i < len(str) && i+1 < v.width; i++ {
-			termbox.SetCell(i+1, v.y, str[i], termbox.ColorMagenta, termbox.ColorBlack)
+			termbox.SetCell(i+1, v.y, str[i], termbox.ColorMagenta, termbox.ColorDefault)
 		}
 	}
 }
