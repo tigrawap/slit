@@ -168,8 +168,8 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 	return feeder, lines
 }
 
-// Returns channel for iterating and abort channel, when abort is hit by client should stop fetching and filling channel
-// If forward == back will yield records in reverse order
+// Returns channel for yielding lines. Channel will be closed when no more lines to send
+// Client should close context when no more lines needed
 func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 	f.lock.Lock()
 	f.seek(from)
