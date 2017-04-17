@@ -9,7 +9,6 @@ import (
 	"sync"
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/runes"
-	"time"
 )
 
 type fetcher struct {
@@ -49,7 +48,6 @@ func newFetcher(reader io.ReadSeeker) *fetcher {
 		lineReader:     bufio.NewReaderSize(reader, 64*1024),
 		filtersEnabled: true,
 	}
-	go f.updateLastLine()
 	return f
 }
 
@@ -257,7 +255,7 @@ type posLine struct {
 
 func (f *fetcher) lastLine() int {
 	f.lock.Lock()
-	f.lock.Unlock()
+	defer f.lock.Unlock()
 	f.seek(f.totalLines - 1)
 	for {
 		_, _, err := f.readline()
@@ -267,16 +265,6 @@ func (f *fetcher) lastLine() int {
 	}
 	//}
 	return f.totalLines - 1
-}
-
-func (f *fetcher) updateLastLine() {
-	for {
-		time.Sleep(500 * time.Millisecond)
-		f.lastLine()
-		if config.stdin && config.stdinFinished{
-			break
-		}
-	}
 }
 
 func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {

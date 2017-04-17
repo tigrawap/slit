@@ -329,6 +329,7 @@ type infobarRequest struct {
 
 var requestSearch = make(chan infobarRequest)
 var requestRefresh = make(chan struct{})
+var requestStatusUpdate = make(chan struct{})
 
 func (v *viewer) termGui() {
 	err := termbox.Init()
@@ -350,7 +351,8 @@ func (v *viewer) termGui() {
 		fetcher: v.fetcher,
 	}
 	v.resize(termbox.Size())
-	go v.refreshIfStdin()
+	go v.refreshIfEmpty()
+	go v.updateLastLine()
 loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -374,6 +376,8 @@ loop:
 			case <-requestRefresh:
 				v.buffer.refresh()
 				v.draw()
+			case <-requestStatusUpdate:
+				v.draw()
 			case <-time.After(10 * time.Millisecond):
 				continue
 			}
@@ -382,15 +386,47 @@ loop:
 
 }
 
-func (v *viewer) refreshIfStdin() {
-	for len(v.buffer.buffer) == 0 && v.fetcher.totalLines == 0 {
-		if !config.stdin || config.stdinFinished {
-			break
-		}
-		logging.Debug("requesting refresh")
+func (v *viewer) refreshIfEmpty() {
+	refresh := func(){
 		go termbox.Interrupt()
 		requestRefresh <- struct{}{}
-		time.Sleep(300 * time.Millisecond)
+	}
+	delay := 3 * time.Millisecond
+	for {
+		time.Sleep(delay)
+		if len(v.buffer.buffer) >= v.height{
+			break
+		}
+		if v.buffer.pos != 0 || v.buffer.zeroLine != 0 {
+			break
+		}
+		if len(v.fetcher.filters) != 0 {
+			break
+		}
+		if config.stdinFinished {
+			refresh()
+			break
+		}
+		delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
+		refresh()
+	}
+}
+
+func (f *viewer) updateLastLine() {
+	delay := 100 * time.Millisecond
+	for {
+		time.Sleep(delay)
+		linesRead := f.fetcher.totalLines
+		currentLine := f.fetcher.lastLine()
+		if linesRead-1 != currentLine {
+			go termbox.Interrupt()
+			requestStatusUpdate <- struct{}{}
+		} else {
+			delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
+		}
+		if config.stdin && config.stdinFinished {
+			break
+		}
 	}
 }
 
