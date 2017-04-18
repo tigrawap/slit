@@ -9,6 +9,7 @@ import (
 	"sync"
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/runes"
+	"fmt"
 )
 
 type fetcher struct {
@@ -57,18 +58,18 @@ type line struct {
 }
 
 //seeks to line
-func (f *fetcher) seek(to int) {
+func (f *fetcher) seek(to int) (err error) {
+	err = nil
 	if to < 0 {
 		to = 0
 	}
 	seekTo := to
-	logging.Debug("Seeking to line ", seekTo)
 	fpos, ok := f.lineMap[seekTo]
 	if !ok {
-		if f.totalLines-1 >= seekTo {
+		if f.totalLines-1 < seekTo {
 			if f.totalLines != 0 {
-				fpos = f.lineMap[f.totalLines-1] // Will search from known end
 				seekTo = f.totalLines - 1
+				fpos = f.lineMap[seekTo] // Will search from known end
 			} else {
 				fpos = 0
 				seekTo = 0 // Will search from the beginning...it's a very first call
@@ -88,11 +89,15 @@ func (f *fetcher) seek(to int) {
 	}
 	for {
 		_, pos, err := f.readline()
-		if pos == seekTo {
+		if pos == to {
 			break
 		}
-		if err == io.EOF {
-			panic("Seeking out of bounds")
+		if err == nil {
+			continue
+		} else if err == io.EOF {
+			return io.EOF
+		} else {
+			panic(fmt.Sprintf("Unhandled error during seeking %v", err))
 		}
 	}
 	return
@@ -102,15 +107,16 @@ func (f *fetcher) seek(to int) {
 func (f *fetcher) readline() ([]byte, int, error) {
 	str, err := f.lineReader.ReadBytes('\n')
 	pos := f.lineReaderPos
-	if err == nil {
-		f.lineReaderPos += 1
+	if len(str) > 0 {
+		f.lineReaderPos ++
 		if _, ok := f.lineMap[f.lineReaderPos]; !ok {
 			f.lineMap[f.lineReaderPos] = f.lineMap[f.lineReaderPos-1] + len(str)
 			f.totalLines += 1
 		}
-		return str[:len(str)-1], pos, err //TODO: Handle \r for windows logs?
 	}
-	if err == io.EOF {
+	if err == nil {
+		return str[:len(str)-1], pos, err //TODO: Handle \r for windows logs?
+	} else if err == io.EOF {
 		return str, pos, err
 	} else {
 		panic(err)
@@ -173,8 +179,13 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 // Client should close context when no more lines needed
 func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 	f.lock.Lock()
-	f.seek(from)
+	err := f.seek(from)
 	ret := make(chan line, 500)
+	if err == io.EOF {
+		f.lock.Unlock()
+		close(ret)
+		return ret
+	}
 	feeder, lines := f.lineBuilder(ctx)
 	go func() {
 		defer close(feeder)
@@ -256,7 +267,7 @@ type posLine struct {
 func (f *fetcher) lastLine() int {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	f.seek(f.totalLines - 1)
+	check(f.seek(f.totalLines - 1))
 	for {
 		_, _, err := f.readline()
 		if err == io.EOF {
@@ -280,7 +291,7 @@ func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
 				return
 			}
 			tmpLines = tmpLines[:0]
-			f.seek(from - 100)
+			check(f.seek(from - 100))
 			for {
 				str, pos, err := f.readline()
 				if len(str) == 0 && err == io.EOF {
