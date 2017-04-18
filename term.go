@@ -104,7 +104,7 @@ var stylesMap = map[uint8]termbox.Attribute{
 func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
 	if v.keepChars != 0 && !v.wrap {
 		shift := min(v.hOffset, v.keepChars)
-		if shift != 0 {
+		if v.keepChars != 0 {
 			if shift < len(chars) {
 				chars = chars[shift:]
 				attrs = attrs[shift:]
@@ -113,14 +113,14 @@ func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data 
 			keptAttrs := make([]ansi.RuneAttr, shift, shift+len(chars))
 			copy(keptChars, data.Runes[:min(shift, len(data.Runes))])
 			copy(keptAttrs, data.Attrs[:min(shift, len(data.Runes))])
-			for i, _ := range keptAttrs {
-				attr := &keptAttrs[i]
+			chars = append(keptChars, chars...)
+			attrs = append(keptAttrs, attrs...)
+			for i:=0; i<v.keepChars && i < len(chars); i++{
+				attr := &attrs[i]
 				attr.Fg = ansi.FgColor(ansi.ColorBlue)
 				//attr.Bg = ansi.BgColor(ansi.ColorBlue)
 				//attr.Style = uint8(ansi.StyleBold)
 			}
-			chars = append(keptChars, chars...)
-			attrs = append(keptAttrs, attrs...)
 		}
 	}
 	return chars, attrs
@@ -332,6 +332,7 @@ type infobarRequest struct {
 var requestSearch = make(chan infobarRequest)
 var requestRefresh = make(chan struct{})
 var requestStatusUpdate = make(chan struct{})
+var requestKeepCharsChange = make(chan int)
 
 func (v *viewer) termGui() {
 	err := termbox.Init()
@@ -347,6 +348,7 @@ func (v *viewer) termGui() {
 		currentLine:    &v.buffer.originalPos,
 		totalLines:     &v.fetcher.totalLines,
 		filtersEnabled: &v.fetcher.filtersEnabled,
+		keepChars:      &v.keepChars,
 	}
 	v.focus = v
 	v.buffer = viewBuffer{
@@ -382,6 +384,11 @@ loop:
 				v.draw()
 			case <-time.After(10 * time.Millisecond):
 				continue
+			case charChange := <-requestKeepCharsChange:
+				if v.keepChars + charChange >= 0 {
+					v.keepChars = v.keepChars + charChange
+				}
+				v.draw()
 			}
 		}
 	}
@@ -389,14 +396,14 @@ loop:
 }
 
 func (v *viewer) refreshIfEmpty() {
-	refresh := func(){
+	refresh := func() {
 		go termbox.Interrupt()
 		requestRefresh <- struct{}{}
 	}
 	delay := 3 * time.Millisecond
 	for {
 		time.Sleep(delay)
-		if len(v.buffer.buffer) >= v.height{
+		if len(v.buffer.buffer) >= v.height {
 			break
 		}
 		if v.buffer.pos != 0 || v.buffer.zeroLine != 0 {

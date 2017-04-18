@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/tigrawap/slit/runes"
 	"fmt"
+	"strconv"
 )
 
 const promtLength = 1
@@ -30,6 +31,7 @@ type infobar struct {
 	totalLines     *int
 	currentLine    *int
 	filtersEnabled *bool
+	keepChars      *int
 }
 
 func (v *infobar) moveCursor(direction int) error {
@@ -91,7 +93,9 @@ func (v *infobar) draw() {
 		v.showSearch()
 	case ibModeKeepCharacters:
 		termbox.SetCell(0, v.y, 'K', termbox.ColorGreen, termbox.ColorBlack)
+		v.editBuffer = []rune(strconv.Itoa(*v.keepChars))
 		v.showSearch()
+		v.moveCursorToPosition(len(v.editBuffer))
 	case ibModeStatus:
 		v.statusBar()
 	default:
@@ -198,6 +202,14 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 			v.moveCursor(-1)
 		case termbox.KeyArrowRight:
 			v.moveCursor(+1)
+		case termbox.KeyArrowUp:
+			if v.mode == ibModeKeepCharacters{
+				v.changeKeepChars(+1)
+			}
+		case termbox.KeyArrowDown:
+			if v.mode == ibModeKeepCharacters{
+				v.changeKeepChars(-1)
+			}
 		case termbox.KeyBackspace, termbox.KeyBackspace2:
 			err := v.moveCursor(-1)
 			if err == nil {
@@ -222,4 +234,11 @@ func (v *infobar) syncSearchString() {
 		v.setCell(i, v.y, ch, termbox.ColorYellow, termbox.ColorBlack)
 	}
 	termbox.Flush()
+}
+
+func (v *infobar) changeKeepChars(direction int){
+	go func(){
+		go termbox.Interrupt()
+		requestKeepCharsChange <- direction
+	}()
 }

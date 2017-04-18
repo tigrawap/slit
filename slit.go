@@ -19,9 +19,9 @@ func init() {
 	logging.Config.LogPath = "/tmp/slit.log"
 }
 
-var config struct{
-	outPath string
-	stdin bool
+var config struct {
+	outPath       string
+	stdin         bool
 	stdinFinished bool
 }
 
@@ -41,16 +41,16 @@ func main() {
 			return
 		}
 		var cacheFile *os.File
-		if config.outPath == ""{
+		if config.outPath == "" {
 			cacheFile, err = ioutil.TempFile("/tmp", "slit_")
 			check(err)
 			defer os.Remove(cacheFile.Name())
-		}else{
-			openFile := func() error{
+		} else {
+			openFile := func() error {
 				cacheFile, err = os.OpenFile(config.outPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 				return err
 			}
-			if err = openFile(); os.IsExist(err){
+			if err = openFile(); os.IsExist(err) {
 				os.Remove(config.outPath)
 				err = openFile()
 			}
@@ -60,13 +60,13 @@ func main() {
 		check(err)
 		defer cacheFile.Close()
 		defer f.Close()
-		go func(){
+		go func() {
 			io.Copy(cacheFile, os.Stdin)
 			config.stdinFinished = true
 		}()
 	} else {
 		if flag.NArg() != 1 {
-			fmt.Fprintln(os.Stderr,"Only viewing of one file or from STDIN is supported")
+			fmt.Fprintln(os.Stderr, "Only viewing of one file or from STDIN is supported")
 			os.Exit(1)
 		}
 		filename := flag.Arg(0)
