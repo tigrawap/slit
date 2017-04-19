@@ -32,6 +32,14 @@ type infobar struct {
 	currentLine    *int
 	filtersEnabled *bool
 	keepChars      *int
+	history        ibHistory
+}
+
+type ibHistory struct {
+	buffer       [][]rune
+	size         int    // TODO: file-history, maximum size of history file in number of lines, will be rotated once reached 100%, keeping 80% of records
+	pos          int    // position from the end of file. New records appended, so 0 is always "before" last record with ==1 being last record
+	currentInput []rune // when navigating from zero position will hold input use entered and displayed once back to zero pos
 }
 
 func (v *infobar) moveCursor(direction int) error {
@@ -153,6 +161,10 @@ func (v *infobar) moveCursorToPosition(pos int) {
 	termbox.Flush()
 }
 
+func (v *infobar) moveCursorToEnd(){
+	v.moveCursorToPosition(len(v.editBuffer))
+}
+
 func (v *infobar) requestSearch() {
 	searchString := append([]rune(nil), v.editBuffer...) // Buffer may be modified by concurrent reset
 	searchMode := v.mode
@@ -195,6 +207,7 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 				return ACTION_RESET_FOCUS
 			}
 		case termbox.KeyEnter:
+			v.saveHistory()
 			v.requestSearch()
 			v.reset(ibModeStatus)
 			return ACTION_RESET_FOCUS
@@ -203,13 +216,9 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 		case termbox.KeyArrowRight:
 			v.moveCursor(+1)
 		case termbox.KeyArrowUp:
-			if v.mode == ibModeKeepCharacters{
-				v.changeKeepChars(+1)
-			}
+			v.onKeyUp()
 		case termbox.KeyArrowDown:
-			if v.mode == ibModeKeepCharacters{
-				v.changeKeepChars(-1)
-			}
+			v.onKeyDown()
 		case termbox.KeyBackspace, termbox.KeyBackspace2:
 			err := v.moveCursor(-1)
 			if err == nil {
@@ -218,6 +227,75 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 			}
 		}
 	}
+	return
+}
+func (v *infobar) saveHistory() {
+	if v.mode == ibModeKeepCharacters {
+		return
+	}
+	v.history.add(v.editBuffer)
+}
+func (history *ibHistory) add(str []rune) {
+	if len(str) == 0{
+		return // no need to save empty strings
+	}
+	data := make([]rune, len(str))
+	copy(data, str)
+	history.buffer = append(history.buffer, data)
+	history.pos = 0
+}
+
+func (v *infobar) onKeyUp() {
+	switch v.mode {
+	case ibModeKeepCharacters:
+		v.changeKeepChars(+1)
+	default:
+		v.navigateHistory(+1)
+	}
+}
+
+func (v *infobar) onKeyDown() {
+	switch v.mode {
+	case ibModeKeepCharacters:
+		v.changeKeepChars(-1)
+	default:
+		v.navigateHistory(-1)
+	}
+}
+
+func (v *infobar) navigateHistory(i int) {
+	target := v.history.pos + i
+	if len(v.history.buffer) == 0 {
+		target = 0
+	}
+	if target > len(v.history.buffer) {
+		target = len(v.history.buffer)
+	}
+	if target < 0 {
+		target = 0
+	}
+	onPosChange := func(){
+		v.moveCursorToEnd()
+		v.syncSearchString()
+	}
+	if target == 0 {
+		if v.history.pos == 0 {
+			return // Does not matter where we are going, but nothing to do here.
+		} else {
+			v.history.pos = target
+			v.editBuffer = v.history.currentInput
+			onPosChange()
+			return
+		}
+	}
+	if v.history.pos == 0 { // Moved out from zero-search to existing search string
+		v.history.currentInput = v.editBuffer
+	}
+	v.history.pos = target
+	targetString := v.history.buffer[len(v.history.buffer)-target]
+	v.editBuffer = make([]rune, len(targetString))
+	copy(v.editBuffer, targetString)
+	onPosChange()
 	return
 }
 
@@ -236,8 +314,8 @@ func (v *infobar) syncSearchString() {
 	termbox.Flush()
 }
 
-func (v *infobar) changeKeepChars(direction int){
-	go func(){
+func (v *infobar) changeKeepChars(direction int) {
+	go func() {
 		go termbox.Interrupt()
 		requestKeepCharsChange <- direction
 	}()
