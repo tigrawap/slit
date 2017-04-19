@@ -7,6 +7,19 @@ The goal is to get **more** from logs than **most** of other pagers can. And to 
 Slit supports opening a single file (for now), or retrieving input from stdin
 Output is not readline-compatible; It is runs in terminal mode, which means your terminal doesn't get clogged by all the logs you are reading.
 
+### Installation
+Best way is to get Go on your system and compile yourself. With Go it's easy then it sounds - download and install from https://golang.org/dl/  
+  
+If you are just installing go, make sure that you got `$GOPATH/bin` in your `PATH`
+
+
+Then just `go get github.com/tigrawap/slit` and you are done  
+
+
+If you prefer pre-built binaries they are always on releases page, although, might be some commits behind master branch
+https://github.com/tigrawap/slit/releases
+  
+
 ### Keybindings:  
 
 - **/** - forward search  
