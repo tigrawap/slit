@@ -6,6 +6,11 @@ import (
 	"github.com/tigrawap/slit/runes"
 	"fmt"
 	"strconv"
+	"os"
+	"github.com/tigrawap/slit/logging"
+	"path/filepath"
+	"bufio"
+	"sync"
 )
 
 const promtLength = 1
@@ -35,11 +40,14 @@ type infobar struct {
 	history        ibHistory
 }
 
+const ibHistorySize = 1000
+
 type ibHistory struct {
 	buffer       [][]rune
-	size         int    // TODO: file-history, maximum size of history file in number of lines, will be rotated once reached 100%, keeping 80% of records
+	wlock        sync.Mutex
 	pos          int    // position from the end of file. New records appended, so 0 is always "before" last record with ==1 being last record
 	currentInput []rune // when navigating from zero position will hold input use entered and displayed once back to zero pos
+	loaded       bool
 }
 
 func (v *infobar) moveCursor(direction int) error {
@@ -161,7 +169,7 @@ func (v *infobar) moveCursorToPosition(pos int) {
 	termbox.Flush()
 }
 
-func (v *infobar) moveCursorToEnd(){
+func (v *infobar) moveCursorToEnd() {
 	v.moveCursorToPosition(len(v.editBuffer))
 }
 
@@ -207,7 +215,7 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 				return ACTION_RESET_FOCUS
 			}
 		case termbox.KeyEnter:
-			v.saveHistory()
+			v.addToHistory()
 			v.requestSearch()
 			v.reset(ibModeStatus)
 			return ACTION_RESET_FOCUS
@@ -229,20 +237,77 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 	}
 	return
 }
-func (v *infobar) saveHistory() {
+
+func (history *ibHistory) load() {
+	if history.loaded {
+		return
+	}
+	history.loaded = true
+	f, err := os.Open(config.historyPath)
+	if os.IsNotExist(err) {
+		return
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		history.buffer = append(history.buffer, []rune(scanner.Text()))
+	}
+}
+
+func (v *infobar) addToHistory() {
 	if v.mode == ibModeKeepCharacters {
 		return
 	}
 	v.history.add(v.editBuffer)
 }
+
 func (history *ibHistory) add(str []rune) {
-	if len(str) == 0{
+	if len(str) == 0 {
 		return // no need to save empty strings
 	}
+	history.load()
 	data := make([]rune, len(str))
 	copy(data, str)
 	history.buffer = append(history.buffer, data)
 	history.pos = 0
+	go history.save(str)
+}
+
+func (history *ibHistory) save(str []rune) {
+	history.wlock.Lock()
+	defer history.wlock.Unlock()
+	os.MkdirAll(filepath.Dir(config.historyPath), os.ModePerm)
+	f, err := os.OpenFile(config.historyPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Could not open history file: %s", err))
+		return
+	}
+	defer f.Close()
+	f.Write([]byte(string(str) + "\n"))
+	logging.Debug("len, size", len(history.buffer), ibHistorySize)
+	if len(history.buffer) >= ibHistorySize {
+		history.trim()
+	}
+}
+func (history *ibHistory) trim() {
+	tmpPath := config.historyPath + "_tmp"
+	tmpFile := openRewrite(tmpPath)
+	writer := bufio.NewWriter(tmpFile)
+	keptHistory := history.buffer[len(history.buffer) - ibHistorySize/100*80:]
+	for _, str := range keptHistory {
+		writer.WriteString(string(str) + "\n")
+	}
+
+	if err := writer.Flush(); err != nil {
+		logging.Debug("Could not write temporary history file")
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		logging.Debug("Could not close temporary history file")
+		return
+	}
+	history.buffer = keptHistory
+	os.Rename(tmpPath, config.historyPath)
 }
 
 func (v *infobar) onKeyUp() {
@@ -264,6 +329,7 @@ func (v *infobar) onKeyDown() {
 }
 
 func (v *infobar) navigateHistory(i int) {
+	v.history.load()
 	target := v.history.pos + i
 	if len(v.history.buffer) == 0 {
 		target = 0
@@ -274,7 +340,7 @@ func (v *infobar) navigateHistory(i int) {
 	if target < 0 {
 		target = 0
 	}
-	onPosChange := func(){
+	onPosChange := func() {
 		v.moveCursorToEnd()
 		v.syncSearchString()
 	}

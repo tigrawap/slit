@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"io"
 	"fmt"
+	"path/filepath"
+	"os/user"
 )
 
 func check(e error) {
@@ -16,11 +18,19 @@ func check(e error) {
 }
 
 func init() {
-	logging.Config.LogPath = "/tmp/slit.log"
+	logging.Config.LogPath = filepath.FromSlash("/tmp/slit.log")
+	currentUser, err := user.Current()
+	if err != nil {
+		logging.Debug("Could not obtain current user")
+		config.historyPath = filepath.FromSlash("/tmp/.slit/history")
+	} else {
+		config.historyPath = filepath.Join(currentUser.HomeDir, ".slit", "history")
+	}
 }
 
 var config struct {
 	outPath       string
+	historyPath   string
 	stdin         bool
 	stdinFinished bool
 }
@@ -46,15 +56,7 @@ func main() {
 			check(err)
 			defer os.Remove(cacheFile.Name())
 		} else {
-			openFile := func() error {
-				cacheFile, err = os.OpenFile(config.outPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
-				return err
-			}
-			if err = openFile(); os.IsExist(err) {
-				os.Remove(config.outPath)
-				err = openFile()
-			}
-			check(err)
+			cacheFile = openRewrite(config.outPath)
 		}
 		f, err = os.Open(cacheFile.Name())
 		check(err)
