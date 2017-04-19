@@ -99,6 +99,7 @@ func (v *viewer) switchFilters() {
 
 var stylesMap = map[uint8]termbox.Attribute{
 	1: termbox.AttrBold,
+	7: termbox.AttrReverse,
 }
 
 func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
@@ -133,6 +134,7 @@ func (v *viewer) draw() {
 	var attr ansi.RuneAttr
 	var bg termbox.Attribute
 	var fg termbox.Attribute
+	var highlightStyle termbox.Attribute
 	var hlIndices []int
 	var hlChars int
 	var tx int
@@ -161,6 +163,7 @@ func (v *viewer) draw() {
 			attr = attrs[i]
 			bg = termbox.ColorDefault
 			fg = termbox.ColorDefault
+			highlightStyle = termbox.Attribute(0)
 			if len(hlIndices) != 0 && hlChars == 0 {
 				if hlIndices[0] == i {
 					hlIndices = hlIndices[1:]
@@ -168,16 +171,17 @@ func (v *viewer) draw() {
 				}
 			}
 			if hlChars != 0 {
-				bg = termbox.ColorYellow
+				highlightStyle = termbox.AttrReverse
 				hlChars--
 			}
 			if attr.Fg != 0 {
 				fg = termbox.Attribute(attr.Fg-30+1) | stylesMap[attr.Style]
 			}
-			if bg == termbox.ColorDefault { // If already highlighted by search - dont use original color
-				if attr.Bg != 0 {
-					bg = termbox.Attribute(attr.Bg - 40 + 1)
-				}
+			if attr.Bg != 0 {
+				bg = termbox.Attribute(attr.Bg - 40 + 1)
+			}
+			if highlightStyle != termbox.Attribute(0){
+				fg = fg | highlightStyle
 			}
 			termbox.SetCell(tx, ty, char, fg, bg)
 			if !v.wrap {
