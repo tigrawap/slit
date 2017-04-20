@@ -32,6 +32,7 @@ https://github.com/tigrawap/slit/releases
 - **-** - Filter: exclude
 - **+** - Filter: union
 - **=** - Remove all filters
+- **U** - Removes last filter
 - **C** - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
 - **W** - Wrap/Unwrap lines
 - **f/PageDown/Space** - Page Down

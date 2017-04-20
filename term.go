@@ -1,16 +1,16 @@
 package main
 
 import (
+	"code.cloudfoundry.org/bytefmt"
+	"context"
 	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
-	"context"
 	"github.com/tigrawap/slit/runes"
-	"runtime"
-	"time"
 	"io"
-	"code.cloudfoundry.org/bytefmt"
+	"runtime"
 	"strconv"
+	"time"
 )
 
 type viewer struct {
@@ -32,7 +32,7 @@ type viewer struct {
 type action uint
 
 const (
-	NO_ACTION          action = iota
+	NO_ACTION action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
 )
@@ -116,7 +116,7 @@ func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data 
 			copy(keptAttrs, data.Attrs[:min(shift, len(data.Runes))])
 			chars = append(keptChars, chars...)
 			attrs = append(keptAttrs, attrs...)
-			for i:=0; i<v.keepChars && i < len(chars); i++{
+			for i := 0; i < v.keepChars && i < len(chars); i++ {
 				attr := &attrs[i]
 				attr.Fg = ansi.FgColor(ansi.ColorBlue)
 				//attr.Bg = ansi.BgColor(ansi.ColorBlue)
@@ -180,7 +180,7 @@ func (v *viewer) draw() {
 			if attr.Bg != 0 {
 				bg = termbox.Attribute(attr.Bg - 40 + 1)
 			}
-			if highlightStyle != termbox.Attribute(0){
+			if highlightStyle != termbox.Attribute(0) {
 				fg = fg | highlightStyle
 			}
 			termbox.SetCell(tx, ty, char, fg, bg)
@@ -212,7 +212,7 @@ func (v *viewer) navigate(direction int) {
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(v.fetcher.lastLine())
-	v.navigate(- v.height + 1)
+	v.navigate(-v.height + 1)
 	v.draw()
 }
 
@@ -259,6 +259,11 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.nextSearch(false)
 		case 'N':
 			v.nextSearch(true)
+		case 'U':
+			if ok := v.fetcher.removeLastFilter(); ok {
+				v.buffer.refresh()
+				v.draw()
+			}
 		case 'g':
 			v.navigateStart()
 		case 'G':
@@ -286,7 +291,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			reportSystemUsage()
 		case '=':
 			v.fetcher.filters = v.fetcher.filters[:0]
-			v.buffer.reset(v.buffer.currentLine().Pos)
+			v.buffer.refresh()
 			v.draw()
 		case 'C':
 			v.switchFilters()
@@ -389,7 +394,7 @@ loop:
 			case <-time.After(10 * time.Millisecond):
 				continue
 			case charChange := <-requestKeepCharsChange:
-				if v.keepChars + charChange >= 0 {
+				if v.keepChars+charChange >= 0 {
 					v.keepChars = v.keepChars + charChange
 				}
 				v.draw()

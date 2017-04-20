@@ -117,7 +117,7 @@ func (f *fetcher) readline() ([]byte, int, error) {
 	if err == nil {
 		return str[:len(str)-1], pos, err //TODO: Handle \r for windows logs?
 	} else if err == io.EOF {
-		if len(str) != 0{
+		if len(str) != 0 {
 			//Not a good idea to continue reading from the middle of line thinking it's new one
 			f.lineReader = nil
 			f.lineReaderPos = 0
@@ -329,4 +329,12 @@ func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
 		}
 	}()
 	return ret
+}
+
+func (f *fetcher) removeLastFilter() bool {
+	if len(f.filters) > 0 {
+		f.filters = f.filters[:len(f.filters)-1]
+		return true
+	}
+	return false
 }
