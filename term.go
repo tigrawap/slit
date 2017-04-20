@@ -68,7 +68,7 @@ func (v *viewer) searchBack() {
 		v.navigate(-index)
 		return
 	}
-	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos, v.search); index != -1 {
+	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos - 1, v.search); index != -1 {
 		v.buffer.reset(index)
 		v.draw()
 	}
