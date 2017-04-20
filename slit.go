@@ -19,12 +19,21 @@ func check(e error) {
 
 func init() {
 	logging.Config.LogPath = filepath.Join(os.TempDir(), "slit.log")
-	currentUser, err := user.Current()
-	if err != nil {
-		config.historyPath = filepath.Join(os.TempDir(), "slit_history")
-	} else {
-		config.historyPath = filepath.Join(currentUser.HomeDir, ".slit", "history")
+	slitdir := os.Getenv("SLIT_DIR")
+	if slitdir == ""{
+		currentUser, err := user.Current()
+		var homedir string
+		if err != nil {
+			homedir = os.Getenv("HOME")
+			if homedir == "" {
+				homedir = os.TempDir()
+			}
+		} else {
+			homedir = currentUser.HomeDir
+		}
+		slitdir = filepath.Join(homedir, ".slit")
 	}
+	config.historyPath = filepath.Join(slitdir,  "history")
 }
 
 var config struct {
