@@ -7,6 +7,10 @@ The goal is to get **more** from logs than **most** of other pagers can. And to 
 Slit supports opening a single file (for now), or retrieving input from stdin
 Output is not readline-compatible; It is runs in terminal mode, which means your terminal doesn't get clogged by all the logs you are reading.
 
+### Live demo
+[![asciicast](https://asciinema.org/a/bdv224gkfx8gvwk9m2yu1w7mr.png)](https://asciinema.org/a/bdv224gkfx8gvwk9m2yu1w7mr)
+https://asciinema.org/a/bdv224gkfx8gvwk9m2yu1w7mr
+
 ### Installation
 Best way is to get Go on your system and compile yourself. With Go it's easier then it sounds - download and install from https://golang.org/dl/  
   
