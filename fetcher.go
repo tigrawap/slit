@@ -283,26 +283,27 @@ func (f *fetcher) lastLine() int {
 	return f.totalLines - 1
 }
 
+const fetchBackBuffer = 100
 func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
 	f.lock.Lock()
 	ret := make(chan line, 500)
-	tmpLines := make([]posLine, 100)
+	tmpLines := make([]posLine, fetchBackBuffer)
 	var l line
 	go func() {
 		defer f.lock.Unlock()
 		defer close(ret)
 		for {
-			if from == 0 {
+			if from < 0 {
 				return
 			}
 			tmpLines = tmpLines[:0]
-			check(f.seek(from - 100))
+			check(f.seek(from - fetchBackBuffer + 1))
 			for {
 				str, pos, err := f.readline()
 				if len(str) == 0 && err == io.EOF {
 					break
 				}
-				if pos >= from {
+				if pos > from {
 					break
 				}
 				tmpLines = append(tmpLines, posLine{str, pos})
@@ -322,10 +323,7 @@ func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
 					return
 				}
 			}
-			from = from - 100
-			if from < 0 {
-				from = 0
-			}
+			from = from - fetchBackBuffer
 		}
 	}()
 	return ret

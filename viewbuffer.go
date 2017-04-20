@@ -1,12 +1,12 @@
 package main
 
 import (
-	"sync"
 	"context"
-	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/ansi"
+	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/runes"
 	"io"
+	"sync"
 )
 
 type viewBuffer struct {
@@ -63,12 +63,13 @@ func (b *viewBuffer) backFill() {
 	logging.Debug("Trying to backfill")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	prevLine := b.zeroLine
-	if b.zeroLine == 0 {
-		return // Nothing to backfill?
-	}
+	var prevLine int
 	if len(b.buffer) != 0 {
+		logging.Debug("Using previous line using buffer", b.buffer[0].Pos-1)
 		prevLine = b.buffer[0].Pos - 1
+	} else {
+		logging.Debug("Going with zeroLine set on reset", b.zeroLine)
+		prevLine = b.zeroLine - 1
 	}
 	if prevLine <= 0 {
 		return // still nothing to backfill
@@ -87,7 +88,7 @@ func (b *viewBuffer) backFill() {
 	}
 	//oldData := b.buffer[0:]
 	if len(b.buffer) > b.window*2 {
-		b.buffer = b.buffer[0:b.window*2] // shrinking forward-buffer
+		b.buffer = b.buffer[0 : b.window*2] // shrinking forward-buffer
 	}
 	oldDataLen := len(b.buffer)
 	b.buffer = append(b.buffer, newData...)              // Ensuring that got enough space, expanding if needed
@@ -155,7 +156,7 @@ func (b *viewBuffer) searchForward(sub []rune) int {
 
 func (b *viewBuffer) searchBack(sub []rune) int {
 	prevLines := b.buffer[:b.pos]
-	for i := 1; i <= len(prevLines); i ++ {
+	for i := 1; i <= len(prevLines); i++ {
 		if runes.Index(prevLines[len(prevLines)-i].Str.Runes, sub) != -1 {
 			return i
 		}
