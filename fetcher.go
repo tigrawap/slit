@@ -103,25 +103,26 @@ func (f *fetcher) seek(to int) (err error) {
 	return
 }
 
-//reads and returns one line, position and error, which can only be io.EOF
+//reads and returns one line, position and error, which can only be io.EOF, otherwise panics
 func (f *fetcher) readline() ([]byte, int, error) {
 	str, err := f.lineReader.ReadBytes('\n')
 	pos := f.lineReaderPos
 	if len(str) > 0 {
-		f.lineReaderPos ++
-		if _, ok := f.lineMap[f.lineReaderPos]; !ok {
-			f.lineMap[f.lineReaderPos] = f.lineMap[f.lineReaderPos-1] + len(str)
-			f.totalLines += 1
+		if !(err == io.EOF && config.stdin && !config.stdinFinished){
+			// Bad idea to remember position when we are not done reading
+			f.lineReaderPos ++
+			if _, ok := f.lineMap[f.lineReaderPos]; !ok {
+				f.lineMap[f.lineReaderPos] = f.lineMap[f.lineReaderPos-1] + len(str)
+				f.totalLines += 1
+			}
+		}else if err == io.EOF{
+			f.lineReader = nil
+			f.lineReaderPos = 0
 		}
 	}
 	if err == nil {
 		return str[:len(str)-1], pos, err //TODO: Handle \r for windows logs?
 	} else if err == io.EOF {
-		if len(str) != 0 {
-			//Not a good idea to continue reading from the middle of line thinking it's new one
-			f.lineReader = nil
-			f.lineReaderPos = 0
-		}
 		return str, pos, err
 	} else {
 		panic(err)
