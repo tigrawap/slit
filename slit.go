@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"os"
-	"github.com/tigrawap/slit/logging"
-	"io/ioutil"
-	"io"
 	"fmt"
-	"path/filepath"
+	"github.com/tigrawap/slit/logging"
+	"io"
+	"io/ioutil"
+	"os"
 	"os/user"
+	"path/filepath"
 )
 
 func check(e error) {
@@ -52,7 +52,7 @@ func main() {
 		}
 		var cacheFile *os.File
 		if config.outPath == "" {
-			cacheFile, err = ioutil.TempFile("/tmp", "slit_")
+			cacheFile, err = ioutil.TempFile(os.TempDir(), "slit_")
 			check(err)
 			defer os.Remove(cacheFile.Name())
 		} else {
@@ -90,5 +90,8 @@ func outputToStdout(file *os.File) {
 	io.Copy(os.Stdout, file)
 }
 func isPipe(info os.FileInfo) bool {
+	if info == nil {
+		return false
+	}
 	return (info.Mode() & os.ModeCharDevice) == 0
 }

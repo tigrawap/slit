@@ -2,7 +2,9 @@
 .DS_Store
 *.log
 slit_windows_amd64.exe
+slit_windows_386.exe
 slit_darwin_386
 slit_linux_386
 slit_linux_amd64
 slit_darwin_amd64
+slit_freebsd_386
