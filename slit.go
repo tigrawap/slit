@@ -18,11 +18,10 @@ func check(e error) {
 }
 
 func init() {
-	logging.Config.LogPath = filepath.FromSlash("/tmp/slit.log")
+	logging.Config.LogPath = filepath.Join(os.TempDir(), "slit.log")
 	currentUser, err := user.Current()
 	if err != nil {
-		logging.Debug("Could not obtain current user")
-		config.historyPath = filepath.FromSlash("/tmp/.slit/history")
+		config.historyPath = filepath.Join(os.TempDir(), "slit_history")
 	} else {
 		config.historyPath = filepath.Join(currentUser.HomeDir, ".slit", "history")
 	}
