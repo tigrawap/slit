@@ -8,8 +8,7 @@ Slit supports opening a single file (for now), or retrieving input from stdin
 Output is not readline-compatible; It is runs in terminal mode, which means your terminal doesn't get clogged by all the logs you are reading.
 
 ### Live demo
-[![asciicast](https://asciinema.org/a/bdv224gkfx8gvwk9m2yu1w7mr.png)](https://asciinema.org/a/bdv224gkfx8gvwk9m2yu1w7mr)
-https://asciinema.org/a/bdv224gkfx8gvwk9m2yu1w7mr
+![Live demo](https://habrastorage.org/files/a64/704/82b/a6470482b6b04f548998b57df088ebb6.gif)
 
 ### Installation
 Best way is to get Go on your system and compile yourself. With Go it's easier then it sounds - download and install from https://golang.org/dl/  
