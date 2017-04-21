@@ -1,8 +1,8 @@
 package logging
 
 import (
-	"os"
 	"log"
+	"os"
 	"time"
 )
 

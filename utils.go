@@ -30,8 +30,7 @@ func min64(a, b int64) int64 {
 	return b
 }
 
-
-func openRewrite(path string) *os.File{
+func openRewrite(path string) *os.File {
 	var err error
 	var f *os.File
 	openFile := func() error {

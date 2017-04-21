@@ -1,15 +1,15 @@
 package main
 
 import (
-	"github.com/nsf/termbox-go"
-	"errors"
-	"github.com/tigrawap/slit/runes"
-	"fmt"
-	"strconv"
-	"os"
-	"github.com/tigrawap/slit/logging"
-	"path/filepath"
 	"bufio"
+	"errors"
+	"fmt"
+	"github.com/nsf/termbox-go"
+	"github.com/tigrawap/slit/logging"
+	"github.com/tigrawap/slit/runes"
+	"os"
+	"path/filepath"
+	"strconv"
 	"sync"
 )
 
@@ -18,7 +18,7 @@ const promtLength = 1
 type infobarMode uint
 
 const (
-	ibModeStatus         infobarMode = iota
+	ibModeStatus infobarMode = iota
 	ibModeSearch
 	ibModeBackSearch
 	ibModeFilter
@@ -33,6 +33,7 @@ type infobar struct {
 	cx             int //cursor position
 	editBuffer     []rune
 	mode           infobarMode
+	flock          *sync.RWMutex
 	totalLines     *int
 	currentLine    *int
 	filtersEnabled *bool
@@ -44,7 +45,7 @@ const ibHistorySize = 1000
 
 type ibHistory struct {
 	buffer       [][]rune
-	wlock        sync.Mutex
+	wlock        sync.RWMutex
 	pos          int    // position from the end of file. New records appended, so 0 is always "before" last record with ==1 being last record
 	currentInput []rune // when navigating from zero position will hold input use entered and displayed once back to zero pos
 	loaded       bool
@@ -70,6 +71,8 @@ func (v *infobar) reset(mode infobarMode) {
 }
 
 func (v *infobar) statusBar() {
+	v.flock.Lock()
+	defer v.flock.Unlock()
 	for i := 0; i < v.width; i++ {
 		termbox.SetCell(i, v.y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
@@ -268,8 +271,10 @@ func (history *ibHistory) add(str []rune) {
 	history.load()
 	data := make([]rune, len(str))
 	copy(data, str)
+	history.wlock.Lock()
 	history.buffer = append(history.buffer, data)
 	history.pos = 0
+	history.wlock.Unlock()
 	go history.save(str)
 }
 
@@ -293,7 +298,7 @@ func (history *ibHistory) trim() {
 	tmpPath := config.historyPath + "_tmp"
 	tmpFile := openRewrite(tmpPath)
 	writer := bufio.NewWriter(tmpFile)
-	keptHistory := history.buffer[len(history.buffer) - ibHistorySize/100*80:]
+	keptHistory := history.buffer[len(history.buffer)-ibHistorySize/100*80:]
 	for _, str := range keptHistory {
 		writer.WriteString(string(str) + "\n")
 	}

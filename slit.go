@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/tigrawap/slit/logging"
@@ -9,6 +10,10 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sync"
+	//_ "net/http/pprof"
+	//"log"
+	//"net/http"
 )
 
 func check(e error) {
@@ -20,7 +25,7 @@ func check(e error) {
 func init() {
 	logging.Config.LogPath = filepath.Join(os.TempDir(), "slit.log")
 	slitdir := os.Getenv("SLIT_DIR")
-	if slitdir == ""{
+	if slitdir == "" {
 		currentUser, err := user.Current()
 		var homedir string
 		if err != nil {
@@ -33,14 +38,30 @@ func init() {
 		}
 		slitdir = filepath.Join(homedir, ".slit")
 	}
-	config.historyPath = filepath.Join(slitdir,  "history")
+	config.historyPath = filepath.Join(slitdir, "history")
+	config.stdinFinished = make(chan struct{})
+	//go func() {
+	//	log.Println(http.ListenAndServe("localhost:6060", nil))
+	//}()
 }
 
-var config struct {
+type Config struct {
 	outPath       string
 	historyPath   string
 	stdin         bool
-	stdinFinished bool
+	stdinFinished chan struct{}
+}
+
+var config Config
+
+func (c *Config) isStdinRead() bool {
+	select {
+	case <-c.stdinFinished:
+		return true
+	default:
+		return false
+	}
+
 }
 
 func main() {
@@ -51,11 +72,14 @@ func main() {
 	stdoutStat, _ := os.Stdout.Stat()
 	var f *os.File
 	var err error
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
 	if isPipe(stdinStat) {
 		config.stdin = true
-		config.stdinFinished = false
 		if isPipe(stdoutStat) {
 			outputToStdout(os.Stdin)
+			cancel()
 			return
 		}
 		var cacheFile *os.File
@@ -68,11 +92,28 @@ func main() {
 		}
 		f, err = os.Open(cacheFile.Name())
 		check(err)
+		copyDone := sync.WaitGroup{}
 		defer cacheFile.Close()
+		defer copyDone.Wait()
 		defer f.Close()
+		defer wg.Done()
+		copyDone.Add(1)
 		go func() {
-			io.Copy(cacheFile, os.Stdin)
-			config.stdinFinished = true
+			var err error
+		copyLoop:
+			for {
+				select {
+				case <-ctx.Done():
+					break copyLoop
+				default:
+					_, err = io.CopyN(cacheFile, os.Stdin, 64*1024)
+					if err != nil {
+						break copyLoop
+					}
+				}
+			}
+			close(config.stdinFinished)
+			copyDone.Done()
 		}()
 	} else {
 		if flag.NArg() != 1 {
@@ -83,17 +124,23 @@ func main() {
 		f, err = os.Open(filename)
 		check(err)
 		defer f.Close()
+		defer wg.Done()
 		if isPipe(stdoutStat) {
 			outputToStdout(f)
+			cancel()
 			return
 		}
 	}
 
+	wg.Add(1)
 	v := &viewer{
 		fetcher: newFetcher(f),
+		ctx:     ctx,
 	}
 	v.termGui()
+	cancel()
 }
+
 func outputToStdout(file *os.File) {
 	io.Copy(os.Stdout, file)
 }

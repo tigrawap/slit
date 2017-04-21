@@ -1,10 +1,10 @@
 package ansi
 
 import (
-	"github.com/tigrawap/slit/runes"
-	"strings"
-	"strconv"
 	"bytes"
+	"github.com/tigrawap/slit/runes"
+	"strconv"
+	"strings"
 )
 
 type RuneAttr struct {
@@ -18,16 +18,15 @@ type Astring struct {
 	Attrs []RuneAttr
 }
 
-
-
-
 type Style uint8
+
 const (
 	StyleNormal Style = iota
 	StyleBold
 )
 
 type Color uint8
+
 const (
 	ColorBlack Color = iota
 	ColorRed
@@ -39,11 +38,11 @@ const (
 	ColorGray
 )
 
-func FgColor(color Color) uint8{
+func FgColor(color Color) uint8 {
 	return uint8(color) + 30
 }
 
-func BgColor(color Color) uint8{
+func BgColor(color Color) uint8 {
 	return uint8(color) + 40
 }
 
@@ -77,7 +76,7 @@ mainLoop:
 				}
 				attr.Fg, attr.Bg, attr.Style = 0, 0, 0
 				if distance != 0 {
-					data := string(rr[i+2:i+2+distance])
+					data := string(rr[i+2 : i+2+distance])
 					formats := strings.Split(data, ";")
 					for _, format := range formats {
 						// TODO: Can be optimized by using bytes directly

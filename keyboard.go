@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/nsf/termbox-go"
-	"time"
 	"github.com/tigrawap/slit/logging"
+	"time"
 )
 
 type ALT_KEYMAP uint
 
 const (
-	NOT_ESCAPE      ALT_KEYMAP = iota
+	NOT_ESCAPE ALT_KEYMAP = iota
 	ESC
 	ALT_LEFT_ARROW
 	ALT_RIGHT_ARROW

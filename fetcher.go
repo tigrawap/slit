@@ -1,21 +1,23 @@
 package main
 
 import (
-	"github.com/tigrawap/slit/ansi"
-	"context"
-	"io"
-	"os"
 	"bufio"
-	"sync"
+	"context"
+	"fmt"
+	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/runes"
-	"fmt"
+	"io"
+	"os"
+	"runtime/debug"
+	"sync"
 )
 
 type fetcher struct {
-	lock           sync.Mutex
+	mLock          sync.RWMutex
 	lineMap        map[int]int // caches offset of every line
 	reader         io.ReadSeeker
+	lock           sync.RWMutex
 	lineReader     *bufio.Reader
 	lineReaderPos  int
 	totalLines     int //Total lines currently fetched
@@ -23,8 +25,14 @@ type fetcher struct {
 	filtersEnabled bool
 }
 
+func (f *fetcher) updateMap(key, value int) {
+	f.mLock.Lock()
+	f.lineMap[key] = value
+	defer f.mLock.Unlock()
+}
+
 // Pos == -1 if line is excluded
-func (f *fetcher) filteredLine(l posLine) (line) {
+func (f *fetcher) filteredLine(l posLine) line {
 	str := ansi.NewAstring(l.b)
 	if len(f.filters) == 0 || !f.filtersEnabled {
 		return line{str, l.pos}
@@ -87,13 +95,13 @@ func (f *fetcher) seek(to int) (err error) {
 	if seekTo == to {
 		return
 	}
+	var pos int
 	for {
-		_, pos, err := f.readline()
-		if pos == to {
-			break
-		}
+		_, pos, err = f.readline()
 		if err == nil {
-			continue
+			if pos == to {
+				break
+			}
 		} else if err == io.EOF {
 			return io.EOF
 		} else {
@@ -105,17 +113,21 @@ func (f *fetcher) seek(to int) (err error) {
 
 //reads and returns one line, position and error, which can only be io.EOF, otherwise panics
 func (f *fetcher) readline() ([]byte, int, error) {
+	if f.lineReader == nil {
+		debug.PrintStack()
+	}
 	str, err := f.lineReader.ReadBytes('\n')
 	pos := f.lineReaderPos
 	if len(str) > 0 {
-		if !(err == io.EOF && config.stdin && !config.stdinFinished){
+		if !(err == io.EOF && config.stdin && !config.isStdinRead()) {
 			// Bad idea to remember position when we are not done reading
-			f.lineReaderPos ++
+			f.lineReaderPos++
 			if _, ok := f.lineMap[f.lineReaderPos]; !ok {
 				f.lineMap[f.lineReaderPos] = f.lineMap[f.lineReaderPos-1] + len(str)
 				f.totalLines += 1
 			}
-		}else if err == io.EOF{
+		} else if err == io.EOF {
+			//debug.PrintStack()
 			f.lineReader = nil
 			f.lineReaderPos = 0
 		}
@@ -187,13 +199,16 @@ func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 	f.lock.Lock()
 	err := f.seek(from)
 	ret := make(chan line, 500)
+	var wg sync.WaitGroup
 	if err == io.EOF {
 		f.lock.Unlock()
 		close(ret)
 		return ret
 	}
 	feeder, lines := f.lineBuilder(ctx)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(feeder)
 		for {
 			str, pos, err := f.readline()
@@ -210,9 +225,10 @@ func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 			}
 		}
 	}()
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(ret)
-		defer f.lock.Unlock()
 		var l line
 		var ok bool
 		for {
@@ -230,6 +246,12 @@ func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 				return
 			}
 		}
+	}()
+	go func() {
+		wg.Wait()
+		for _ = range lines { //draining lines, will act as lock for linebuilder
+		}
+		f.lock.Unlock()
 	}()
 	return ret
 }
@@ -280,11 +302,10 @@ func (f *fetcher) lastLine() int {
 			return f.totalLines - 1
 		}
 	}
-	//}
-	return f.totalLines - 1
 }
 
 const fetchBackBuffer = 100
+
 func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
 	f.lock.Lock()
 	ret := make(chan line, 500)

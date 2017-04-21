@@ -10,6 +10,7 @@ import (
 	"io"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,7 @@ type viewer struct {
 	search        []rune
 	buffer        viewBuffer
 	keepChars     int
+	ctx           context.Context
 }
 
 type action uint
@@ -68,7 +70,7 @@ func (v *viewer) searchBack() {
 		v.navigate(-index)
 		return
 	}
-	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos - 1, v.search); index != -1 {
+	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos-1, v.search); index != -1 {
 		v.buffer.reset(index)
 		v.draw()
 	}
@@ -86,9 +88,11 @@ func (v *viewer) nextSearch(reverse bool) {
 }
 
 func (v *viewer) addFilter(filter filter) {
+	v.fetcher.lock.Lock()
 	v.fetcher.filters = append(v.fetcher.filters, filter)
 	v.fetcher.filtersEnabled = true
 	v.buffer.reset(v.buffer.currentLine().Pos)
+	v.fetcher.lock.Unlock()
 }
 
 func (v *viewer) switchFilters() {
@@ -349,6 +353,10 @@ func (v *viewer) termGui() {
 		panic(err)
 	}
 	defer termbox.Close()
+	wg := sync.WaitGroup{}
+	ctx, cancel := context.WithCancel(v.ctx)
+	defer wg.Wait()
+	defer cancel()
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.SetOutputMode(termbox.Output256)
 	v.info = infobar{
@@ -358,14 +366,16 @@ func (v *viewer) termGui() {
 		totalLines:     &v.fetcher.totalLines,
 		filtersEnabled: &v.fetcher.filtersEnabled,
 		keepChars:      &v.keepChars,
+		flock:          &v.fetcher.lock,
 	}
 	v.focus = v
 	v.buffer = viewBuffer{
 		fetcher: v.fetcher,
 	}
 	v.resize(termbox.Size())
-	go v.refreshIfEmpty()
-	go v.updateLastLine()
+	wg.Add(2)
+	go func() { v.refreshIfEmpty(ctx); wg.Done() }()
+	go func() { v.updateLastLine(ctx); wg.Done() }()
 loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -404,46 +414,70 @@ loop:
 
 }
 
-func (v *viewer) refreshIfEmpty() {
+func (v *viewer) refreshIfEmpty(ctx context.Context) {
 	refresh := func() {
 		go termbox.Interrupt()
 		requestRefresh <- struct{}{}
 	}
 	delay := 3 * time.Millisecond
+	locked := false
+loop:
 	for {
-		time.Sleep(delay)
-		if len(v.buffer.buffer) >= v.height {
-			break
-		}
-		if v.buffer.pos != 0 || v.buffer.zeroLine != 0 {
-			break
-		}
-		if len(v.fetcher.filters) != 0 {
-			break
-		}
-		if config.stdinFinished {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+			v.buffer.lock.RLock()
+			locked = true
+			if len(v.buffer.buffer) >= v.height {
+				break loop
+			}
+			if v.buffer.pos != 0 || v.buffer.zeroLine != 0 {
+				break loop
+			}
+			if len(v.fetcher.filters) != 0 {
+				break loop
+			}
+			v.buffer.lock.RUnlock()
+			locked = false
+			if config.stdin && config.isStdinRead() {
+				refresh()
+				break
+			}
+			delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
 			refresh()
-			break
 		}
-		delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
-		refresh()
+	}
+	if locked {
+		v.buffer.lock.RUnlock()
 	}
 }
 
-func (f *viewer) updateLastLine() {
+func (f *viewer) updateLastLine(ctx context.Context) {
 	delay := 100 * time.Millisecond
 	for {
-		time.Sleep(delay)
-		linesRead := f.fetcher.totalLines
-		currentLine := f.fetcher.lastLine()
-		if linesRead-1 != currentLine {
-			go termbox.Interrupt()
-			requestStatusUpdate <- struct{}{}
-		} else {
-			delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
-		}
-		if config.stdin && config.stdinFinished {
-			break
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+			f.fetcher.lock.RLock()
+			linesRead := f.fetcher.totalLines
+			f.fetcher.lock.RUnlock()
+			currentLine := f.fetcher.lastLine()
+			if linesRead-1 != currentLine {
+				go termbox.Interrupt()
+				select {
+				case requestStatusUpdate <- struct{}{}:
+				case <-ctx.Done():
+					return
+
+				}
+			} else {
+				delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
+			}
+			if config.stdin && !config.isStdinRead() {
+				break
+			}
 		}
 	}
 }
