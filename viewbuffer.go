@@ -10,14 +10,14 @@ import (
 )
 
 type viewBuffer struct {
-	fetcher     *fetcher
-	lock        sync.RWMutex // buffer updated in big chunks from fetcher with rolling back-forward copies
-	buffer      []line
+	fetcher     *Fetcher
+	lock        sync.RWMutex // buffer updated in big chunks from Fetcher with rolling back-forward copies
+	buffer      []Line
 	pos         int // zero position in buffer
-	zeroLine    int // Zero line to start displaying from if buffer is empty
+	resetPos    Pos // Zero Line to start displaying from if buffer is empty
 	window      int // height of window, buffer size calculated in multiplies of window
 	eofReached  bool
-	originalPos int
+	originalPos Pos
 }
 
 func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
@@ -36,12 +36,17 @@ func (b *viewBuffer) fill() {
 	defer b.lock.Unlock()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	line := b.zeroLine
+	fillFrom := b.resetPos
 	if len(b.buffer) > 0 {
-		line = b.buffer[len(b.buffer)-1].Pos + 1 //Will start getting from next line, not from current
+		fillFrom = b.buffer[len(b.buffer)-1].Pos //Will start getting from next Line, not from current
 	}
-	dataChan := b.fetcher.Get(ctx, line)
+	dataChan := b.fetcher.Get(ctx, fillFrom)
 	for data := range dataChan {
+		if len(b.buffer) > 0 {
+			if b.buffer[len(b.buffer)-1].Offset == data.Offset {
+				continue
+			}
+		}
 		b.buffer = append(b.buffer, data) // will shrink it later(make async as well?), first let's fill the window
 		if len(b.buffer[b.pos:]) >= b.window*3 {
 			break
@@ -59,24 +64,26 @@ func (b *viewBuffer) fill() {
 func (b *viewBuffer) backFill() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
-	logging.Debug("Trying to backfill")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	var prevLine int
+	var prevLine Pos
 	if len(b.buffer) != 0 {
-		logging.Debug("Using previous line using buffer", b.buffer[0].Pos-1)
-		prevLine = b.buffer[0].Pos - 1
+		logging.Debug("Using previous Line using buffer", b.buffer[0].Pos)
+		prevLine = b.buffer[0].Pos
 	} else {
-		logging.Debug("Going with zeroLine set on reset", b.zeroLine)
-		prevLine = b.zeroLine - 1
+		logging.Debug("Going with resetPos set on reset", b.resetPos)
+		prevLine = b.resetPos
 	}
-	if prevLine <= 0 {
-		return // still nothing to backfill
+	logging.Debug("Trying to backfill from", prevLine)
+	if prevLine.Offset < 0 {
+		return // Nothing to backfill
 	}
 	dataChan := b.fetcher.GetBack(ctx, prevLine)
-	newData := make([]line, 0, b.window*3)
+	newData := make([]Line, 0, b.window*3)
 	for data := range dataChan {
-		//logging.Debug("Backfill to buffer", string(data.Str.Runes), data.Pos, prevLine)
+		if len(b.buffer) != 0 && data.Offset == prevLine.Offset {
+			continue // reached original line
+		}
 		newData = append(newData, data)
 		if len(newData) >= b.window*3 {
 			break
@@ -115,7 +122,7 @@ func (b *viewBuffer) shift(direction int) {
 		}
 		return
 	}
-	//b.pos = b.pos + direction
+	//b.Line = b.Line + direction
 	//if len(b.buffer)
 	downShift := func() bool {
 		if b.pos+direction < len(b.buffer)-1 {
@@ -163,28 +170,28 @@ func (b *viewBuffer) searchBack(sub []rune) int {
 	return -1
 }
 
-func (b *viewBuffer) lastLine() line {
+func (b *viewBuffer) lastLine() Line {
 	lastLine := len(b.buffer) - 1
 	if lastLine != -1 {
 		return b.buffer[lastLine]
 	} else {
-		return line{}
+		return Line{}
 	}
 }
 
-func (b *viewBuffer) currentLine() line {
+func (b *viewBuffer) currentLine() Line {
 	if len(b.buffer) == 0 {
-		return line{}
+		return Line{}
 	}
 	return b.buffer[b.pos]
 }
 
-func (b *viewBuffer) reset(toLine int) {
+func (b *viewBuffer) reset(toLine Pos) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	b.buffer = b.buffer[:0]
 	b.pos = 0
-	b.zeroLine = toLine
+	b.resetPos = toLine
 	b.originalPos = toLine
 	b.eofReached = false
 }

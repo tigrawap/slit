@@ -34,8 +34,8 @@ type infobar struct {
 	editBuffer     []rune
 	mode           infobarMode
 	flock          *sync.RWMutex
-	totalLines     *int
-	currentLine    *int
+	totalLines     LineNo
+	currentLine    *Pos
 	filtersEnabled *bool
 	keepChars      *int
 	history        ibHistory
@@ -47,17 +47,17 @@ type ibHistory struct {
 	buffer       [][]rune
 	wlock        sync.RWMutex
 	pos          int    // position from the end of file. New records appended, so 0 is always "before" last record with ==1 being last record
-	currentInput []rune // when navigating from zero position will hold input use entered and displayed once back to zero pos
+	currentInput []rune // when navigating from zero position will hold input use entered and displayed once back to zero Line
 	loaded       bool
 }
 
 func (v *infobar) moveCursor(direction int) error {
 	target := v.cx + direction
 	if target < 0 {
-		return errors.New("Reached beginning of the line")
+		return errors.New("Reached beginning of the Line")
 	}
 	if target > len(v.editBuffer) {
-		return errors.New("Reached end of the line")
+		return errors.New("Reached end of the Line")
 	}
 	v.moveCursorToPosition(target)
 	return nil
@@ -76,7 +76,7 @@ func (v *infobar) statusBar() {
 	for i := 0; i < v.width; i++ {
 		termbox.SetCell(i, v.y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
-	str := []rune(fmt.Sprintf("%d/%d", *v.currentLine+1, *v.totalLines))
+	str := []rune(fmt.Sprintf("%s/%d", *v.currentLine, v.totalLines))
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
 	}

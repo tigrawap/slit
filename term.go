@@ -20,7 +20,7 @@ type viewer struct {
 	width         int
 	height        int
 	wrap          bool
-	fetcher       *fetcher
+	fetcher       *Fetcher
 	focus         Focusing
 	info          infobar
 	searchMode    infobarMode
@@ -53,25 +53,28 @@ type Navigator interface {
 }
 
 func (v *viewer) searchForward() {
-	index := -1
-	if index = v.buffer.searchForward(v.search); index != -1 {
-		v.navigate(index)
+	if distance := v.buffer.searchForward(v.search); distance != -1 {
+		v.navigate(distance)
 		return
 	}
-	if index = v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, v.search); index != -1 {
-		v.buffer.reset(index)
+	if pos := v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, v.search); pos != POS_NOT_FOUND {
+		v.buffer.reset(pos)
 		v.draw()
 	}
 }
 
 func (v *viewer) searchBack() {
-	index := -1
-	if index = v.buffer.searchBack(v.search); index != -1 {
-		v.navigate(-index)
+	if distance := v.buffer.searchBack(v.search); distance != -1 {
+		v.navigate(-distance)
 		return
 	}
-	if index = v.fetcher.SearchBack(context.TODO(), v.buffer.currentLine().Pos-1, v.search); index != -1 {
-		v.buffer.reset(index)
+	fromPos := v.buffer.currentLine().Pos
+	if fromPos.Line > 0 {
+		fromPos.Line--
+	}
+	fromPos.Offset--
+	if pos := v.fetcher.SearchBack(context.TODO(), fromPos, v.search); pos != POS_NOT_FOUND {
+		v.buffer.reset(pos)
 		v.draw()
 	}
 }
@@ -214,13 +217,13 @@ func (v *viewer) navigate(direction int) {
 }
 
 func (v *viewer) navigateEnd() {
-	v.buffer.reset(v.fetcher.lastLine())
-	v.navigate(-v.height + 1)
+	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
+	v.navigate(-v.height) //not adding +1 since nothing on screen now
 	v.draw()
 }
 
 func (v *viewer) navigateStart() {
-	v.buffer.reset(0)
+	v.buffer.reset(Pos{0, 0})
 	v.draw()
 }
 
@@ -330,7 +333,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 
 func (v *viewer) resize(width, height int) {
 	v.width, v.height = width, height
-	v.height-- // Saving one line for infobar
+	v.height-- // Saving one Line for infobar
 	v.info.resize(v.width, v.height)
 	v.buffer.window = v.height
 	v.draw()
@@ -343,7 +346,7 @@ type infobarRequest struct {
 
 var requestSearch = make(chan infobarRequest)
 var requestRefresh = make(chan struct{})
-var requestStatusUpdate = make(chan struct{})
+var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
 
 func (v *viewer) termGui() {
@@ -362,7 +365,7 @@ func (v *viewer) termGui() {
 		y:              0,
 		width:          0,
 		currentLine:    &v.buffer.originalPos,
-		totalLines:     &v.fetcher.totalLines,
+		totalLines:     0,
 		filtersEnabled: &v.fetcher.filtersEnabled,
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
@@ -398,8 +401,9 @@ loop:
 			case <-requestRefresh:
 				v.buffer.refresh()
 				v.draw()
-			case <-requestStatusUpdate:
-				if v.focus == v{
+			case line := <-requestStatusUpdate:
+				v.info.totalLines = line + 1
+				if v.focus == v {
 					v.info.draw()
 				}
 			case <-time.After(10 * time.Millisecond):
@@ -433,7 +437,7 @@ loop:
 			if len(v.buffer.buffer) >= v.height {
 				break loop
 			}
-			if v.buffer.pos != 0 || v.buffer.zeroLine != 0 {
+			if v.buffer.pos != 0 || v.buffer.resetPos.Offset != 0 {
 				break loop
 			}
 			if len(v.fetcher.filters) != 0 {
@@ -456,32 +460,33 @@ loop:
 
 func (f *viewer) updateLastLine(ctx context.Context) {
 	delay := 10 * time.Millisecond
+	lastLine := Pos{0, 0}
+	var dataLine PosLine
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
-			f.fetcher.lock.RLock()
-			linesRead := f.fetcher.totalLines
-			f.fetcher.lock.RUnlock()
-			currentLine := f.fetcher.advanceLine()
-			if linesRead-1 != currentLine {
+			prevLine := lastLine
+			dataLine = f.fetcher.advanceLines(lastLine)
+			lastLine = dataLine.Pos
+			if lastLine != prevLine {
 				go termbox.Interrupt()
 				select {
-				case requestStatusUpdate <- struct{}{}:
+				case requestStatusUpdate <- lastLine.Line:
+					f.fetcher.updateMap(dataLine)
 				case <-ctx.Done():
 					return
 
 				}
 				delay = 0
+			} else if config.stdin && !config.isStdinRead() {
+				break
 			} else {
 				if delay == 0 {
 					delay = 10 * time.Millisecond
 				}
 				delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
-			}
-			if config.stdin && !config.isStdinRead() {
-				break
 			}
 		}
 	}

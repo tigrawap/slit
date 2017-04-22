@@ -7,13 +7,13 @@ import (
 	"github.com/tigrawap/slit/logging"
 	"io"
 	"io/ioutil"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/user"
 	"path/filepath"
 	"sync"
-	//_ "net/http/pprof"
-	//"log"
-	//"net/http"
 )
 
 func check(e error) {
@@ -40,9 +40,9 @@ func init() {
 	}
 	config.historyPath = filepath.Join(slitdir, "history")
 	config.stdinFinished = make(chan struct{})
-	//go func() {
-	//	log.Println(http.ListenAndServe("localhost:6060", nil))
-	//}()
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 }
 
 type Config struct {
