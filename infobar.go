@@ -86,6 +86,7 @@ func (v *infobar) statusBar() {
 			termbox.SetCell(i+1, v.y, str[i], termbox.ColorMagenta, termbox.ColorDefault)
 		}
 	}
+	termbox.Flush()
 }
 
 func (v *infobar) showSearch() {

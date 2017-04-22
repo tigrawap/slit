@@ -34,7 +34,6 @@ func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
 func (b *viewBuffer) fill() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
-	logging.Debug("Filling")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	line := b.zeroLine

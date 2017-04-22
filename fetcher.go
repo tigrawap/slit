@@ -292,6 +292,25 @@ type posLine struct {
 	pos int
 }
 
+func (f *fetcher) advanceLine() int {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	check(f.seek(f.totalLines))
+	i := 0
+	for {
+		_, _, err := f.readline()
+		i++
+		if err == io.EOF {
+			return f.totalLines - 1
+		}
+		if i >=  500 {
+			return f.totalLines - 1
+		}
+	}
+}
+
+
+
 func (f *fetcher) lastLine() int {
 	f.lock.Lock()
 	defer f.lock.Unlock()

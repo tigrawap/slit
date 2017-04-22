@@ -147,7 +147,6 @@ func (v *viewer) draw() {
 		hlChars = 0
 		data, err := v.buffer.getLine(dataLine)
 		if err == io.EOF {
-			logging.Debug("aborting")
 			break
 		}
 		if v.hOffset > len(data.Runes)-1 {
@@ -400,7 +399,9 @@ loop:
 				v.buffer.refresh()
 				v.draw()
 			case <-requestStatusUpdate:
-				v.draw()
+				if v.focus == v{
+					v.info.draw()
+				}
 			case <-time.After(10 * time.Millisecond):
 				continue
 			case charChange := <-requestKeepCharsChange:
@@ -454,7 +455,7 @@ loop:
 }
 
 func (f *viewer) updateLastLine(ctx context.Context) {
-	delay := 100 * time.Millisecond
+	delay := 10 * time.Millisecond
 	for {
 		select {
 		case <-ctx.Done():
@@ -463,7 +464,7 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 			f.fetcher.lock.RLock()
 			linesRead := f.fetcher.totalLines
 			f.fetcher.lock.RUnlock()
-			currentLine := f.fetcher.lastLine()
+			currentLine := f.fetcher.advanceLine()
 			if linesRead-1 != currentLine {
 				go termbox.Interrupt()
 				select {
@@ -472,7 +473,11 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 					return
 
 				}
+				delay = 0
 			} else {
+				if delay == 0 {
+					delay = 10 * time.Millisecond
+				}
 				delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
 			}
 			if config.stdin && !config.isStdinRead() {
