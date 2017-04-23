@@ -271,13 +271,13 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 }
 
 // Returns position of next matching search
-func (f *Fetcher) Search(ctx context.Context, from Pos, sub []rune) (pos Pos) {
-	defer logging.Timeit("Searching for ", string(sub))()
+func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc SearchFunc) (pos Pos) {
+	defer logging.Timeit("Searching")()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	reader := f.Get(ctx, from)
 	for l := range reader {
-		if runes.Index(l.Str.Runes, sub) != -1 {
+		if searchFunc(l.Str.Runes) != nil{
 			return l.Pos
 		}
 	}
@@ -285,13 +285,13 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, sub []rune) (pos Pos) {
 }
 
 // Returns position of next matching back-search
-func (f *Fetcher) SearchBack(ctx context.Context, from Pos, sub []rune) (pos Pos) {
-	defer logging.Timeit("Back-Searching for ", string(sub))()
+func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc SearchFunc) (pos Pos) {
+	defer logging.Timeit("Back-Searching")()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	reader := f.GetBack(ctx, from)
 	for l := range reader {
-		if runes.Index(l.Str.Runes, sub) != -1 {
+		if searchFunc(l.Str.Runes) != nil {
 			return l.Pos
 		}
 	}

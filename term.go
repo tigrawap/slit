@@ -53,18 +53,26 @@ type Navigator interface {
 }
 
 func (v *viewer) searchForward() {
-	if distance := v.buffer.searchForward(v.search); distance != -1 {
+	searchFunc, err := getSearchFunc(v.info.searchType, v.search)
+	if err != nil{
+		return
+	}
+	if distance := v.buffer.searchForward(searchFunc); distance != -1 {
 		v.navigate(distance)
 		return
 	}
-	if pos := v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, v.search); pos != POS_NOT_FOUND {
+	if pos := v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, searchFunc); pos != POS_NOT_FOUND {
 		v.buffer.reset(pos)
 		v.draw()
 	}
 }
 
 func (v *viewer) searchBack() {
-	if distance := v.buffer.searchBack(v.search); distance != -1 {
+	searchFunc, err := getSearchFunc(v.info.searchType, v.search)
+	if err != nil{
+		return
+	}
+	if distance := v.buffer.searchBack(searchFunc); distance != -1 {
 		v.navigate(-distance)
 		return
 	}
@@ -73,7 +81,7 @@ func (v *viewer) searchBack() {
 		fromPos.Line--
 	}
 	fromPos.Offset--
-	if pos := v.fetcher.SearchBack(context.TODO(), fromPos, v.search); pos != POS_NOT_FOUND {
+	if pos := v.fetcher.SearchBack(context.TODO(), fromPos, searchFunc); pos != POS_NOT_FOUND {
 		v.buffer.reset(pos)
 		v.draw()
 	}

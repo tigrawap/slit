@@ -147,23 +147,23 @@ func (b *viewBuffer) shift(direction int) {
 	}
 }
 
-func (b *viewBuffer) searchForward(sub []rune) int {
+func (b *viewBuffer) searchForward(searchFunc SearchFunc) int {
 	for i, line := range b.buffer[b.pos:] {
 		if i == 0 {
 			// TODO: Maintain search index?( to navigate inside string)
 			continue
 		}
-		if runes.Index(line.Str.Runes, sub) != -1 {
+		if searchFunc(line.Str.Runes) != nil{
 			return i
 		}
 	}
 	return -1
 }
 
-func (b *viewBuffer) searchBack(sub []rune) int {
+func (b *viewBuffer) searchBack(searchFunc SearchFunc) int {
 	prevLines := b.buffer[:b.pos]
 	for i := 1; i <= len(prevLines); i++ {
-		if runes.Index(prevLines[len(prevLines)-i].Str.Runes, sub) != -1 {
+		if searchFunc(prevLines[len(prevLines)-i].Str.Runes) != nil{
 			return i
 		}
 	}

@@ -54,7 +54,9 @@ const (
 	FilterExclude
 )
 
-type SearchFunc func(sub []rune) int
+// Follows regex return value pattern. nil if not found, slice of range if found
+// Filter does not really need it, but highlighting also must search and requires it
+type SearchFunc func(sub []rune) []int
 type ActionFunc func(str []rune, currentAction filterResult) filterResult
 
 type Filter struct {
@@ -67,29 +69,10 @@ type Filter struct {
 var BadFilterDefinition = errors.New("Bad filter definition")
 
 func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter, error) {
-	var ff SearchFunc
-	switch searchType {
-	case CaseSensitive:
-		ff = func(str []rune) int {
-			return runes.Index(str, sub)
-		}
-	case RegEx:
-		re, err := regexp.Compile(string(sub))
-		if err != nil {
-			return nil, BadFilterDefinition
-		}
-		ff = func(str []rune) int {
-			ret := re.FindStringIndex(string(str))
-			if ret == nil {
-				return -1
-			} else {
-				return ret[0]
-			}
-		}
-	default:
-		return nil, BadFilterDefinition
+	ff, err := getSearchFunc(searchType, sub)
+	if err != nil{
+		return nil, err
 	}
-
 	var af ActionFunc
 	switch action {
 	case FilterIntersect:
@@ -109,12 +92,39 @@ func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter,
 	}, nil
 }
 
+
+func getSearchFunc(searchType SearchType, sub []rune) (SearchFunc, error){
+	var ff SearchFunc
+	switch searchType {
+	case CaseSensitive:
+		subLen := len(sub)
+		ff = func(str []rune) []int {
+			i := runes.Index(str, sub)
+			if i == -1 {
+				return nil
+			}
+			return []int{i, i+subLen}
+		}
+	case RegEx:
+		re, err := regexp.Compile(string(sub))
+		if err != nil {
+			return nil, BadFilterDefinition
+		}
+		ff = func(str []rune) []int {
+			return re.FindStringIndex(string(str))
+		}
+	default:
+		return nil, BadFilterDefinition
+	}
+	return ff, nil
+}
+
 func buildUnionFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction filterResult) filterResult {
 		if currentAction == filterIncluded {
 			return filterIncluded
 		}
-		if searchFunc(str) != -1 {
+		if searchFunc(str) != nil {
 			return filterIncluded
 		}
 		return filterExcluded
@@ -127,7 +137,7 @@ func buildIntersectionFunc(searchFunc SearchFunc) ActionFunc {
 		if currentAction == filterExcluded {
 			return filterExcluded
 		}
-		if searchFunc(str) != -1 {
+		if searchFunc(str) != nil {
 			return filterIncluded
 		}
 		return filterExcluded
@@ -139,7 +149,7 @@ func buildExcludeFunc(searchFunc SearchFunc) ActionFunc {
 		if currentAction == filterExcluded {
 			return filterExcluded
 		}
-		if searchFunc(str) != -1 {
+		if searchFunc(str) != nil {
 			return filterExcluded
 		}
 		return filterIncluded
