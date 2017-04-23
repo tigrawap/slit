@@ -44,7 +44,7 @@ https://github.com/tigrawap/slit/releases
 - **q** - quit
 
 ### Search modes
-Both search and filters support multiple search mode  
+Both search and filters support multiple search modes  
 Right now CaseSensitive and RegEx are supported  
 To switch between modes press "CTRL + /" in search/filter input  
 *TODO: History does not preserve mode of previous searches. Will be improved soon*
