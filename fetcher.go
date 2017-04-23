@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
-	"github.com/tigrawap/slit/runes"
 	"io"
 	"os"
 	"sync"
@@ -60,8 +59,9 @@ type Line struct {
 }
 
 type offsetArr []Offset
-func (a offsetArr) Len() int { return len(a) }
-func (a offsetArr) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func (a offsetArr) Len() int           { return len(a) }
+func (a offsetArr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a offsetArr) Less(i, j int) bool { return a[i] < a[j] }
 
 // Line == -1 if Line is excluded
@@ -277,7 +277,7 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc SearchFunc) (
 	defer cancel()
 	reader := f.Get(ctx, from)
 	for l := range reader {
-		if searchFunc(l.Str.Runes) != nil{
+		if searchFunc(l.Str.Runes) != nil {
 			return l.Pos
 		}
 	}

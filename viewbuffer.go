@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
-	"github.com/tigrawap/slit/runes"
 	"io"
 	"sync"
 )
@@ -94,7 +93,7 @@ func (b *viewBuffer) backFill() {
 	}
 	//oldData := b.buffer[0:]
 	if len(b.buffer) > b.window*2 {
-		b.buffer = b.buffer[0 : b.window*2] // shrinking forward-buffer
+		b.buffer = b.buffer[0: b.window*2] // shrinking forward-buffer
 	}
 	oldDataLen := len(b.buffer)
 	b.buffer = append(b.buffer, newData...)              // Ensuring that got enough space, expanding if needed
@@ -153,7 +152,7 @@ func (b *viewBuffer) searchForward(searchFunc SearchFunc) int {
 			// TODO: Maintain search index?( to navigate inside string)
 			continue
 		}
-		if searchFunc(line.Str.Runes) != nil{
+		if searchFunc(line.Str.Runes) != nil {
 			return i
 		}
 	}
@@ -163,7 +162,7 @@ func (b *viewBuffer) searchForward(searchFunc SearchFunc) int {
 func (b *viewBuffer) searchBack(searchFunc SearchFunc) int {
 	prevLines := b.buffer[:b.pos]
 	for i := 1; i <= len(prevLines); i++ {
-		if searchFunc(prevLines[len(prevLines)-i].Str.Runes) != nil{
+		if searchFunc(prevLines[len(prevLines)-i].Str.Runes) != nil {
 			return i
 		}
 	}

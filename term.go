@@ -6,7 +6,6 @@ import (
 	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
-	"github.com/tigrawap/slit/runes"
 	"io"
 	"runtime"
 	"strconv"
@@ -34,7 +33,7 @@ type viewer struct {
 type action uint
 
 const (
-	NO_ACTION action = iota
+	NO_ACTION          action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
 )
@@ -54,7 +53,7 @@ type Navigator interface {
 
 func (v *viewer) searchForward() {
 	searchFunc, err := getSearchFunc(v.info.searchType, v.search)
-	if err != nil{
+	if err != nil {
 		return
 	}
 	if distance := v.buffer.searchForward(searchFunc); distance != -1 {
@@ -69,7 +68,7 @@ func (v *viewer) searchForward() {
 
 func (v *viewer) searchBack() {
 	searchFunc, err := getSearchFunc(v.info.searchType, v.search)
-	if err != nil{
+	if err != nil {
 		return
 	}
 	if distance := v.buffer.searchBack(searchFunc); distance != -1 {
@@ -100,7 +99,7 @@ func (v *viewer) nextSearch(reverse bool) {
 
 func (v *viewer) addFilter(sub []rune, action FilterAction) {
 	filter, err := NewFilter(sub, action, v.info.searchType)
-	if err != nil{
+	if err != nil {
 		logging.Debug(err)
 		return
 	}
@@ -155,7 +154,7 @@ func (v *viewer) draw() {
 	var bg termbox.Attribute
 	var fg termbox.Attribute
 	var highlightStyle termbox.Attribute
-	var hlIndices []int
+	var hlIndices [][]int
 	var hlChars int
 	var tx int
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
@@ -173,10 +172,12 @@ func (v *viewer) draw() {
 			attrs = data.Attrs[v.hOffset:]
 		}
 		chars, attrs = v.replaceWithKeptChars(chars, attrs, data)
-		if len(v.search) != 0 {
-			hlIndices = runes.IndexAll(chars, v.search)
-		} else {
-			hlIndices = []int{}
+		hlIndices = [][]int{}
+		if len(v.search) != 0{
+			searchFunc, err := getSearchFunc(v.info.searchType, v.search)
+			if err == nil{
+				hlIndices = IndexAll(searchFunc, chars)
+			}
 		}
 		for i, char := range chars {
 			attr = attrs[i]
@@ -184,9 +185,9 @@ func (v *viewer) draw() {
 			fg = termbox.ColorDefault
 			highlightStyle = termbox.Attribute(0)
 			if len(hlIndices) != 0 && hlChars == 0 {
-				if hlIndices[0] == i {
+				if hlIndices[0][0] == i {
+					hlChars = hlIndices[0][1] - hlIndices[0][0]
 					hlIndices = hlIndices[1:]
-					hlChars = len(v.search)
 				}
 			}
 			if hlChars != 0 {
@@ -386,7 +387,7 @@ func (v *viewer) termGui() {
 		filtersEnabled: &v.fetcher.filtersEnabled,
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
-		searchType:	CaseSensitive,
+		searchType:     CaseSensitive,
 	}
 	v.focus = v
 	v.buffer = viewBuffer{

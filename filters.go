@@ -70,7 +70,7 @@ var BadFilterDefinition = errors.New("Bad filter definition")
 
 func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter, error) {
 	ff, err := getSearchFunc(searchType, sub)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	var af ActionFunc
@@ -92,8 +92,7 @@ func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter,
 	}, nil
 }
 
-
-func getSearchFunc(searchType SearchType, sub []rune) (SearchFunc, error){
+func getSearchFunc(searchType SearchType, sub []rune) (SearchFunc, error) {
 	var ff SearchFunc
 	switch searchType {
 	case CaseSensitive:
@@ -103,7 +102,7 @@ func getSearchFunc(searchType SearchType, sub []rune) (SearchFunc, error){
 			if i == -1 {
 				return nil
 			}
-			return []int{i, i+subLen}
+			return []int{i, i + subLen}
 		}
 	case RegEx:
 		re, err := regexp.Compile(string(sub))
@@ -117,6 +116,29 @@ func getSearchFunc(searchType SearchType, sub []rune) (SearchFunc, error){
 		return nil, BadFilterDefinition
 	}
 	return ff, nil
+}
+
+func IndexAll(searchFunc SearchFunc, runestack []rune) (indices [][]int) {
+	if len(runestack) == 0 {
+		return
+	}
+	var i int
+	var ret []int
+	f := 0
+	indices = make([][]int, 0, 1)
+	for {
+		ret = searchFunc(runestack[i:])
+		f++
+		if ret == nil {
+			break
+		} else {
+			ret[0] = ret[0] + i
+			ret[1] = ret[1] + i
+			indices = append(indices, ret)
+			i = i + ret[1]
+		}
+	}
+	return
 }
 
 func buildUnionFunc(searchFunc SearchFunc) ActionFunc {
