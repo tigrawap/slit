@@ -39,6 +39,7 @@ type infobar struct {
 	filtersEnabled *bool
 	keepChars      *int
 	history        ibHistory
+	searchType     SearchType
 }
 
 const ibHistorySize = 1000
@@ -205,6 +206,7 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 	} else {
 		switch ev.Key {
 		case termbox.KeyEsc:
+			logging.Debug("processing esc key")
 			switch getEscKey(ev) {
 			case ALT_LEFT_ARROW:
 				v.navigateWord(false)
@@ -231,6 +233,8 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 			v.onKeyUp()
 		case termbox.KeyArrowDown:
 			v.onKeyDown()
+		case termbox.KeyCtrlSlash:
+			v.switchSearchType()
 		case termbox.KeyBackspace, termbox.KeyBackspace2:
 			err := v.moveCursor(-1)
 			if err == nil {
@@ -240,6 +244,23 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 		}
 	}
 	return
+}
+func (ib *infobar) switchSearchType() {
+	switch ib.mode {
+	case	ibModeExclude,
+		ibModeAppend,
+		ibModeSearch,
+		ibModeBackSearch,
+		ibModeFilter:
+		st := ib.searchType
+		nextId := st.id + 1
+		if _, ok := SearchTypeMap[nextId]; !ok {
+			nextId = 0
+		}
+		nextSt := SearchTypeMap[nextId]
+		ib.searchType = nextSt
+		ib.draw()
+	}
 }
 
 func (history *ibHistory) load() {
@@ -371,17 +392,31 @@ func (v *infobar) navigateHistory(i int) {
 	return
 }
 
-func (v *infobar) setCell(x, y int, ch rune, fg, bg termbox.Attribute) {
+func (v *infobar) setPromptCell(x, y int, ch rune, fg, bg termbox.Attribute) {
 	termbox.SetCell(x+promtLength, v.y, ch, fg, bg)
 }
 
 func (v *infobar) syncSearchString() {
+	// TODO: Does not handle well very narrow screen
+	// TODO: All setCelling here need to be moved to some nicer wrapper funcs
+	var color termbox.Attribute
+	switch v.mode{
+	case ibModeKeepCharacters:
+		color = termbox.ColorYellow
+	default:
+		color = v.searchType.color
+	}
 	for i := 0; i < v.width-promtLength; i++ {
 		ch := ' '
 		if i < len(v.editBuffer) {
 			ch = v.editBuffer[i]
 		}
-		v.setCell(i, v.y, ch, termbox.ColorYellow, termbox.ColorBlack)
+		v.setPromptCell(i, v.y, ch, color, termbox.ColorBlack)
+	}
+	runeName := []rune(v.searchType.name)
+	for i := v.width - len(runeName); i < v.width && i > promtLength; i++ {
+		c := i + len(runeName) - v.width
+		termbox.SetCell(i, v.y, runeName[c], v.searchType.color, termbox.ColorBlack)
 	}
 	termbox.Flush()
 }

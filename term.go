@@ -91,7 +91,7 @@ func (v *viewer) nextSearch(reverse bool) {
 }
 
 func (v *viewer) addFilter(sub []rune, action FilterAction) {
-	filter, err := NewFilter(sub, action, CaseSensitive)
+	filter, err := NewFilter(sub, action, v.info.searchType)
 	if err != nil{
 		logging.Debug(err)
 		return
@@ -378,6 +378,7 @@ func (v *viewer) termGui() {
 		filtersEnabled: &v.fetcher.filtersEnabled,
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
+		searchType:	CaseSensitive,
 	}
 	v.focus = v
 	v.buffer = viewBuffer{
