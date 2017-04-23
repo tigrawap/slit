@@ -27,6 +27,7 @@ https://github.com/tigrawap/slit/releases
 
 - **/** - forward search  
 - **?** - backsearch  
+- **CTRL + /** - Switch between CaseSensitive search and RegEx
 - **&** - Filter: intersect
 - **-** - Filter: exclude
 - **+** - Filter: union
@@ -42,6 +43,14 @@ https://github.com/tigrawap/slit/releases
     Up/Down arrows during K-mode will adjust N of kept chars 
 - **q** - quit
 
+### Search modes
+Both search and filters support multiple search mode  
+Right now CaseSensitive and RegEx are supported  
+To switch between modes press "CTRL + /" in search/filter input  
+*TODO: History does not preserve mode of previous searches. Will be improved soon*
+
+**Note**: For case-insensitive search in **RegEx** use `(?i)cOnDiTiOn`  
+**TODO:** This will be replaced with separate toggle in the future  
 
 ### Filters
 - Inclusive(&): Will keep only lines that match the pattern AND included by previous filters

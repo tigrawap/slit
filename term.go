@@ -173,9 +173,9 @@ func (v *viewer) draw() {
 		}
 		chars, attrs = v.replaceWithKeptChars(chars, attrs, data)
 		hlIndices = [][]int{}
-		if len(v.search) != 0{
+		if len(v.search) != 0 {
 			searchFunc, err := getSearchFunc(v.info.searchType, v.search)
-			if err == nil{
+			if err == nil {
 				hlIndices = IndexAll(searchFunc, chars)
 			}
 		}
