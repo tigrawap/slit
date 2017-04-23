@@ -64,10 +64,17 @@ func (c *Config) isStdinRead() bool {
 
 }
 
+const VERSION = "1.1.0"
 func main() {
 	flag.StringVar(&config.outPath, "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
 	flag.BoolVar(&logging.Config.Enabled, "debug", false, "Enables debug messages, written to /tmp/slit.log")
+	showVersion := false
+	flag.BoolVar(&showVersion, "version", false, "Print version")
 	flag.Parse()
+	if showVersion{
+		fmt.Println("Slit Version: ", VERSION)
+		os.Exit(0)
+	}
 	stdinStat, _ := os.Stdin.Stat()
 	stdoutStat, _ := os.Stdout.Stat()
 	var f *os.File
