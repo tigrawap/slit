@@ -22,7 +22,7 @@ type Fetcher struct {
 	lineReader       *bufio.Reader
 	lineReaderOffset Offset
 	lineReaderPos    int
-	filters          []filter
+	filters          []*Filter
 	filtersEnabled   bool
 }
 
@@ -70,12 +70,12 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 	if len(f.filters) == 0 || !f.filtersEnabled {
 		return Line{str, l.Pos}
 	}
-	var action filterAction
+	var action filterResult
 	for _, filter := range f.filters {
 		action = filter.takeAction(str.Runes, action)
 	}
 	switch action {
-	case filterExclude:
+	case filterExcluded:
 		return Line{Pos: Pos{Line: POS_FILTERED_OUT, Offset: l.Pos.Offset}}
 	default:
 		return Line{str, l.Pos}

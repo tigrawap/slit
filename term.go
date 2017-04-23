@@ -90,7 +90,12 @@ func (v *viewer) nextSearch(reverse bool) {
 	}
 }
 
-func (v *viewer) addFilter(filter filter) {
+func (v *viewer) addFilter(sub []rune, action FilterAction) {
+	filter, err := NewFilter(sub, action, CaseSensitive)
+	if err != nil{
+		logging.Debug(err)
+		return
+	}
 	v.fetcher.lock.Lock()
 	v.fetcher.filters = append(v.fetcher.filters, filter)
 	v.fetcher.filtersEnabled = true
@@ -500,11 +505,11 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 	defer logging.Timeit("Got search request")()
 	switch search.mode {
 	case ibModeFilter:
-		v.addFilter(&includeFilter{search.str, false})
+		v.addFilter(search.str, FilterIntersect)
 	case ibModeAppend:
-		v.addFilter(&includeFilter{search.str, true})
+		v.addFilter(search.str, FilterUnion)
 	case ibModeExclude:
-		v.addFilter(&excludeFilter{search.str})
+		v.addFilter(search.str, FilterExclude)
 	case ibModeSearch:
 		v.search = search.str
 		v.forwardSearch = true
