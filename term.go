@@ -304,18 +304,22 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case 'K':
 			v.focus = &v.info
 			v.info.reset(ibModeKeepCharacters)
+		case 'j':
+			v.navigate(+1)
+		case 'k':
+			v.navigate(-1)
 
 		}
 	} else {
 		switch ev.Key {
 		case termbox.KeyArrowDown:
 			v.navigate(+1)
+		case termbox.KeyArrowUp:
+			v.navigate(-1)
 		case termbox.KeyArrowRight:
 			v.navigateRight()
 		case termbox.KeyArrowLeft:
 			v.navigateLeft()
-		case termbox.KeyArrowUp:
-			v.navigate(-1)
 		case termbox.KeyPgup:
 			v.navigate(-v.height)
 		case termbox.KeyPgdn:
