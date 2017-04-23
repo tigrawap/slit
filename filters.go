@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/tigrawap/slit/runes"
 	"errors"
+	"regexp"
 )
 
 type filterResult uint8
@@ -32,7 +33,7 @@ const (
 	FilterExclude
 )
 
-type SearchFunc func(str []rune, sub []rune) int
+type SearchFunc func(sub []rune) int
 type ActionFunc func(str []rune, currentAction filterResult) filterResult
 
 type Filter struct {
@@ -48,7 +49,22 @@ func NewFilter(sub []rune, action FilterAction, searchType searchType) (*Filter,
 	var ff SearchFunc
 	switch searchType {
 	case CaseSensitive:
-		ff = runes.Index
+		ff = func(str []rune) int {
+			return runes.Index(str, sub)
+		}
+	case RegEx:
+		re, err := regexp.Compile(string(sub))
+		if err != nil {
+			return nil, BadFilterDefinition
+		}
+		ff = func(str []rune) int {
+			ret := re.FindStringIndex(string(str))
+			if ret == nil {
+				return -1
+			} else {
+				return ret[0]
+			}
+		}
 	default:
 		return nil, BadFilterDefinition
 	}
@@ -56,28 +72,28 @@ func NewFilter(sub []rune, action FilterAction, searchType searchType) (*Filter,
 	var af ActionFunc
 	switch action {
 	case FilterIntersect:
-		af = buildIntersectionFunc(sub, ff)
+		af = buildIntersectionFunc(ff)
 	case FilterUnion:
-		af = buildUnionFunc(sub, ff)
+		af = buildUnionFunc(ff)
 	case FilterExclude:
-		af = buildExcludeFunc(sub, ff)
+		af = buildExcludeFunc(ff)
 	default:
 		return nil, BadFilterDefinition
 	}
 
 	return &Filter{
-		sub:sub,
-		st:searchType,
-		takeAction:af,
+		sub:        sub,
+		st:         searchType,
+		takeAction: af,
 	}, nil
 }
 
-func buildUnionFunc(sub []rune, searchFunc SearchFunc) ActionFunc {
+func buildUnionFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction filterResult) filterResult {
 		if currentAction == filterIncluded {
 			return filterIncluded
 		}
-		if searchFunc(str, sub) != -1 {
+		if searchFunc(str) != -1 {
 			return filterIncluded
 		}
 		return filterExcluded
@@ -85,24 +101,24 @@ func buildUnionFunc(sub []rune, searchFunc SearchFunc) ActionFunc {
 
 }
 
-func buildIntersectionFunc(sub []rune, searchFunc SearchFunc) ActionFunc {
+func buildIntersectionFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction filterResult) filterResult {
 		if currentAction == filterExcluded {
 			return filterExcluded
 		}
-		if searchFunc(str, sub) != -1 {
+		if searchFunc(str) != -1 {
 			return filterIncluded
 		}
 		return filterExcluded
 	}
 }
 
-func buildExcludeFunc(sub []rune, searchFunc SearchFunc) ActionFunc {
+func buildExcludeFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction filterResult) filterResult {
 		if currentAction == filterExcluded {
 			return filterExcluded
 		}
-		if searchFunc(str, sub) != -1 {
+		if searchFunc(str) != -1 {
 			return filterExcluded
 		}
 		return filterIncluded
