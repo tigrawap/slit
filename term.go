@@ -110,9 +110,9 @@ var stylesMap = map[uint8]termbox.Attribute{
 }
 
 func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
-	if v.keepChars != 0 && !v.wrap {
+	if v.keepChars > 0 && !v.wrap {
 		shift := min(v.hOffset, v.keepChars)
-		if v.keepChars != 0 {
+		if v.keepChars > 0 {
 			if shift < len(chars) {
 				chars = chars[shift:]
 				attrs = attrs[shift:]
@@ -515,7 +515,7 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 		v.nextSearch(false)
 	case ibModeKeepCharacters:
 		keep, err := strconv.Atoi(string(search.str))
-		if err != nil {
+		if err != nil || keep < 0 {
 			logging.Debug("Err: Keepchar: ", err)
 			v.keepChars = 0
 		} else {
