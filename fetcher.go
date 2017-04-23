@@ -310,10 +310,11 @@ func (f *Fetcher) advanceLines(from Pos) PosLine {
 		if err == io.EOF && len(str) == 0 {
 			return ret
 		} else {
-			if err == io.EOF {
-				str = str[:len(str)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
-			}
 			ret.b, ret.Offset, ret.Line = str, offset, i
+			if err == io.EOF {
+				ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
+				return ret
+			}
 		}
 
 		if i >= 3500+from.Line {
