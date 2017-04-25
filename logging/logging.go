@@ -8,6 +8,7 @@ import (
 
 var Config struct {
 	Enabled bool
+	Follow bool
 	LogPath string
 }
 

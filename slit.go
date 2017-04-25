@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	flag "github.com/ogier/pflag"
 	"github.com/tigrawap/slit/logging"
 	"io"
 	"io/ioutil"
@@ -68,6 +68,7 @@ const VERSION = "1.1.0"
 func main() {
 	flag.StringVar(&config.outPath, "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
 	flag.BoolVar(&logging.Config.Enabled, "debug", false, "Enables debug messages, written to /tmp/slit.log")
+	flag.BoolVarP(&logging.Config.Follow, "follow", "f",false, "Will follow file/stdin")
 	showVersion := false
 	flag.BoolVar(&showVersion, "version", false, "Print version")
 	flag.Parse()
