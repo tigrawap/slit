@@ -53,7 +53,7 @@ To switch between modes press "CTRL + /" in search/filter input
 **TODO:** This will be replaced with separate toggle in the future  
 
 ### Command line arguments  
-- `--follow -f` Follow file/stdin. All filter are applied to new data.  
+- `--follow -f` Follow file/stdin. All filters are applied to new data.  
 When navigating up from the end, following will be stopped and resumed on navigating to the end(shift+g) or just by scrolling down till the end
 - `--version` Displays version   
 
