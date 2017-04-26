@@ -65,9 +65,9 @@ func (c *Config) isStdinRead() bool {
 
 }
 
-const VERSION = "1.1.1"
+const VERSION = "1.1.2"
 func main() {
-	flag.StringVar(&config.outPath, "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
+	flag.StringVarP(&config.outPath, "output", "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
 	flag.BoolVar(&logging.Config.Enabled, "debug", false, "Enables debug messages, written to /tmp/slit.log")
 	flag.BoolVarP(&config.follow, "follow", "f",false, "Will follow file/stdin")
 	showVersion := false
