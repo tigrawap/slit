@@ -52,6 +52,11 @@ To switch between modes press "CTRL + /" in search/filter input
 **Note**: For case-insensitive search in **RegEx** use `(?i)cOnDiTiOn`  
 **TODO:** This will be replaced with separate toggle in the future  
 
+### Command line arguments  
+- `--follow -f` Follow file/stdin. All filter are applied to new data.  
+When navigating up from the end, following will be stopped and resumed on navigating to the end(shift+g) or just by scrolling down till the end
+- `--version` Displays version   
+
 ### Filters
 - Inclusive(&): Will keep only lines that match the pattern AND included by previous filters
 - Exclusive(-): Filters out lines that match the pattern

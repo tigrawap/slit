@@ -8,3 +8,4 @@ slit_linux_386
 slit_linux_amd64
 slit_darwin_amd64
 slit_freebsd_386
+output.sh

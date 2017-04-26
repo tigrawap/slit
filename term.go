@@ -28,6 +28,7 @@ type viewer struct {
 	buffer        viewBuffer
 	keepChars     int
 	ctx           context.Context
+	following     bool
 }
 
 type action uint
@@ -227,16 +228,23 @@ func (v *viewer) draw() {
 
 func (v *viewer) navigate(direction int) {
 	v.buffer.shift(direction)
+	v.following = false
+	if config.follow && ! v.buffer.isFull(){
+		v.following = true
+	}
 	v.draw()
 }
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
 	v.navigate(-v.height) //not adding +1 since nothing on screen now
-	v.draw()
+	if config.follow{
+		v.following = true
+	}
 }
 
 func (v *viewer) navigateStart() {
+	v.following = false
 	v.buffer.reset(Pos{0, 0})
 	v.draw()
 }
@@ -364,6 +372,7 @@ type infobarRequest struct {
 
 var requestSearch = make(chan infobarRequest)
 var requestRefresh = make(chan struct{})
+var requestRefill = make(chan struct{})
 var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
 
@@ -394,9 +403,13 @@ func (v *viewer) termGui() {
 		fetcher: v.fetcher,
 	}
 	v.resize(termbox.Size())
-	wg.Add(2)
+	if config.follow{
+		v.navigateEnd()
+	}
+	wg.Add(3)
 	go func() { v.refreshIfEmpty(ctx); wg.Done() }()
 	go func() { v.updateLastLine(ctx); wg.Done() }()
+	go func() { v.follow(ctx); wg.Done() }()
 loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -420,6 +433,8 @@ loop:
 			case <-requestRefresh:
 				v.buffer.refresh()
 				v.draw()
+			case <-requestRefill: // It is not most efficient solution, it might cause huge amount of redraws
+				v.refill()
 			case line := <-requestStatusUpdate:
 				v.info.totalLines = line + 1
 				if v.focus == v {
@@ -437,6 +452,25 @@ loop:
 	}
 
 }
+func (v *viewer) refill() {
+	for {
+		result := v.buffer.fill()
+		if result.newLines != 0 {
+			v.buffer.shift(result.newLines)
+			if v.buffer.isFull() {
+				v.buffer.shiftToEnd()
+			}
+			v.draw()
+			continue
+		}
+		if result.lastChanged {
+			v.draw()
+			continue
+		}
+		return
+	}
+	v.draw()
+}
 
 func (v *viewer) refreshIfEmpty(ctx context.Context) {
 	refresh := func() {
@@ -451,6 +485,9 @@ loop:
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
+			if config.follow{
+				break loop
+			}
 			v.buffer.lock.RLock()
 			locked = true
 			if len(v.buffer.buffer) >= v.height {
@@ -481,6 +518,7 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 	delay := 10 * time.Millisecond
 	lastLine := Pos{0, 0}
 	var dataLine PosLine
+	loop:
 	for {
 		select {
 		case <-ctx.Done():
@@ -499,8 +537,8 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 
 				}
 				delay = 0
-			} else if config.stdin && !config.isStdinRead() {
-				break
+			} else if config.stdin && config.isStdinRead() {
+				break loop
 			} else {
 				if delay == 0 {
 					delay = 10 * time.Millisecond
@@ -509,6 +547,37 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (v *viewer) follow(ctx context.Context){
+	delay := 100 * time.Millisecond
+	lastOffset := v.fetcher.lastOffset()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+			if !config.follow{
+				continue
+			}
+			if v.following{
+				prevOffset := lastOffset
+				lastOffset = v.fetcher.lastOffset()
+				if lastOffset != prevOffset{
+					go termbox.Interrupt()
+					select {
+					case requestRefill <- struct{}{}:
+					case <-ctx.Done():
+						return
+
+					}
+
+				}
+
+			}
+		}
+	}
+
 }
 
 func (v *viewer) processInfobarRequest(search infobarRequest) {

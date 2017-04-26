@@ -213,6 +213,9 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 		close(ret)
 		return ret
 	}
+	if from.Line == POS_UNKNOWN {
+		from.Line = f.resolveLine(from.Offset)
+	}
 	f.lock.Lock()
 	f.seek(startFrom)
 	var wg sync.WaitGroup
@@ -330,7 +333,6 @@ func (f *Fetcher) lastOffset() Offset {
 		if stat.Size() == 0 {
 			return Offset(0)
 		}
-		logging.Debug("last offset", stat.Size()-1)
 		return Offset(stat.Size() - 1)
 	} else {
 		logging.Debug(fmt.Sprintf("Error retrieving stat from file: %s", err))
@@ -436,18 +438,15 @@ func (f *Fetcher) gcMap() {
 func (f *Fetcher) updateMap(pos PosLine) {
 	f.mLock.RLock()
 	f.lineMap[pos.Offset+Offset(len(pos.b))] = pos.Line
+	f.lineMap[pos.Offset] = pos.Line
 	f.mLock.RUnlock()
 }
 
 func (f *Fetcher) resolveLine(o Offset) LineNo {
 	f.mLock.Lock()
 	defer f.mLock.Unlock()
-	if o == f.lastOffset() {
-		if lineNum, ok := f.lineMap[o]; ok {
-			return lineNum
-		} else {
-			return POS_UNKNOWN
-		}
+	if lineNum, ok := f.lineMap[o]; ok {
+		return lineNum
 	} else {
 		return POS_UNKNOWN
 	}
