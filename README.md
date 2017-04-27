@@ -5,7 +5,7 @@ The goal is to get **more** from logs than **most** of other pagers can. And to 
 
 
 Slit supports opening a single file (for now), or reading input from stdin.
-Slit is **not** readline-compatible; it runs in terminal mode, which means your terminal doesn't get clogged by all the logs you are reading. This also means you shouldn't try to pipe its output into other commands, as you might have done with `less`.
+Slit is runs in terminal mode, writing directly to the screen, without cluttering the terminal buffer by all the logs you are reading.
 
 ### Live demo
 ![Live demo](https://habrastorage.org/files/a64/704/82b/a6470482b6b04f548998b57df088ebb6.gif)
