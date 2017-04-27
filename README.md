@@ -1,33 +1,33 @@
 ## **Slit** - modern $PAGER for noisy logs
 
 
-The goal is to get **more** from logs than **most** of other pagers can. And to do so in **less** time. Basically slit is a verb, applied to logs.
+The goal is to get **more** from logs than **most** of other pagers can. And to do so in **less** time.
 
 
-Slit supports opening a single file (for now), or retrieving input from stdin
-Output is not readline-compatible; It is runs in terminal mode, which means your terminal doesn't get clogged by all the logs you are reading.
+Slit supports opening a single file (for now), or reading input from stdin.
+Slit is runs in terminal mode, writing directly to the screen, without cluttering the terminal buffer by all the logs you are reading.
 
 ### Live demo
 ![Live demo](https://habrastorage.org/files/a64/704/82b/a6470482b6b04f548998b57df088ebb6.gif)
 
 ### Installation
-Best way is to get Go on your system and compile yourself. With Go it's easier then it sounds - download and install from https://golang.org/dl/  
-  
-If you are just installing go, make sure that you got `$GOPATH/bin` in your `PATH`
+The best way is to get **Go** on your system and compile yourself. It's easier then it sounds:
+- download and install from https://golang.org/dl/  
+- make sure that you got `$GOPATH/bin` in your `PATH`.
+- `go get github.com/tigrawap/slit`
+- done!
 
-
-Then just `go get github.com/tigrawap/slit` and you are done  
-
-
-If you prefer pre-built binaries they are always on releases page, although, might be some commits behind master branch
-https://github.com/tigrawap/slit/releases
+If you prefer pre-built binaries, head over to the releases page - https://github.com/tigrawap/slit/releases.
+Keep in mind however they might be some commits behind master branch.
   
 
-### Keybindings:  
+### Key Bindings:  
 
 - **/** - forward search  
 - **?** - backsearch  
-- **CTRL + /** - Switch between CaseSensitive search and RegEx
+- **n** - next match
+- **N** - previous match
+- **CTRL + /** - Switch between `CaseSensitive` search and `RegEx`
 - **&** - Filter: intersect
 - **-** - Filter: exclude
 - **+** - Filter: union
@@ -43,10 +43,10 @@ https://github.com/tigrawap/slit/releases
     Up/Down arrows during K-mode will adjust N of kept chars 
 - **q** - quit
 
-### Search modes
-Both search and filters support multiple search modes  
-Right now CaseSensitive and RegEx are supported  
-To switch between modes press "CTRL + /" in search/filter input  
+### Search Modes
+Both search and filters currently support the `CaseSensitive` and `RegEx` modes.
+To switch between modes press "CTRL + /" in search/filter input.
+
 *TODO: History does not preserve mode of previous searches. Will be improved soon*
 
 **Note**: For case-insensitive search in **RegEx** use `(?i)cOnDiTiOn`  
