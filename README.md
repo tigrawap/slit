@@ -23,29 +23,29 @@ Keep in mind however they might be some commits behind master branch.
 
 ### Key Bindings:  
 
-- **/** - forward search  
-- **?** - backsearch  
-- **n** - next match
-- **N** - previous match
-- **CTRL + /** - Switch between `CaseSensitive` search and `RegEx`
-- **&** - Filter: intersect
-- **-** - Filter: exclude
-- **+** - Filter: union
-- **=** - Remove all filters
-- **U** - Removes last filter
-- **C** - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
-- **W** - Wrap/Unwrap lines
-- **f/PageDown/Space** - Page Down
-- **b/PageUp** - Page Up
-- **g/Home** - Go to first line
-- **G/End** - Go to last line
-- **K** - Keep N first characters(usually containing timestamp) when navigating horizontally  
+- `/` - forward search  
+- `?` - backsearch  
+- `n` - next match
+- `N` - previous match
+- `CTRL + /` - Switch between `CaseSensitive` search and `RegEx`
+- `&` - Filter: intersect
+- `-` - Filter: exclude
+- `+` - Filter: union
+- `=` - Remove all filters
+- `U` - Removes last filter
+- `C` - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
+- `W` - Wrap/Unwrap lines
+- `f`, `PageDown`, `Space` - Page Down
+- `b`, `PageUp` - Page Up
+- `g`, `Home` - Go to first line
+- `G`, `End` - Go to last line
+- `K` - Keep N first characters(usually containing timestamp) when navigating horizontally  
     Up/Down arrows during K-mode will adjust N of kept chars 
-- **q** - quit
+- `q` - quit
 
 ### Search Modes
 Both search and filters currently support the `CaseSensitive` and `RegEx` modes.
-To switch between modes press "CTRL + /" in search/filter input.
+To switch between modes press `CTRL + /` in search/filter input.
 
 *TODO: History does not preserve mode of previous searches. Will be improved soon*
 
