@@ -131,6 +131,23 @@ func main() {
 			os.Exit(1)
 		}
 		filename := flag.Arg(0)
+		fi, err := os.Stat(filename)
+		if os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, filename+": No such file or directory")
+			os.Exit(1)
+		} else if os.IsPermission(err) {
+			fmt.Fprintln(os.Stderr, filename+": Permission denied")
+			os.Exit(1)
+		}
+		check(err)
+		switch fmode := fi.Mode(); {
+		case fmode.IsDir():
+			fmt.Fprintln(os.Stderr, filename+" is a directory")
+			os.Exit(1)
+		case !fmode.IsRegular():
+			fmt.Fprintln(os.Stderr, filename+" is not a regular file")
+			os.Exit(1)
+		}
 		f, err = os.Open(filename)
 		check(err)
 		defer f.Close()
