@@ -50,7 +50,7 @@ type Config struct {
 	historyPath   string
 	stdin         bool
 	stdinFinished chan struct{}
-	follow bool
+	follow        bool
 }
 
 var config Config
@@ -66,14 +66,15 @@ func (c *Config) isStdinRead() bool {
 }
 
 const VERSION = "1.1.2"
+
 func main() {
 	flag.StringVarP(&config.outPath, "output", "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
 	flag.BoolVar(&logging.Config.Enabled, "debug", false, "Enables debug messages, written to /tmp/slit.log")
-	flag.BoolVarP(&config.follow, "follow", "f",false, "Will follow file/stdin")
+	flag.BoolVarP(&config.follow, "follow", "f", false, "Will follow file/stdin")
 	showVersion := false
 	flag.BoolVar(&showVersion, "version", false, "Print version")
 	flag.Parse()
-	if showVersion{
+	if showVersion {
 		fmt.Println("Slit Version: ", VERSION)
 		os.Exit(0)
 	}
