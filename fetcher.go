@@ -8,8 +8,8 @@ import (
 	"github.com/tigrawap/slit/logging"
 	"io"
 	"os"
-	"sync"
 	"sort"
+	"sync"
 	"time"
 )
 

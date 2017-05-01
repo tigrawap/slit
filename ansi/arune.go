@@ -28,7 +28,7 @@ const (
 type Color uint8
 
 const (
-	ColorBlack Color = iota
+	ColorBlack   Color = iota
 	ColorRed
 	ColorGreen
 	ColorYellow
@@ -76,7 +76,7 @@ mainLoop:
 				}
 				attr.Fg, attr.Bg, attr.Style = 0, 0, 0
 				if distance != 0 {
-					data := string(rr[i+2 : i+2+distance])
+					data := string(rr[i+2: i+2+distance])
 					formats := strings.Split(data, ";")
 					for _, format := range formats {
 						// TODO: Can be optimized by using bytes directly
@@ -99,6 +99,22 @@ mainLoop:
 				i = i + 2 + distance
 				continue
 				// Control sequence
+			}
+		} else if r == 8 { // CTRL+H/Backspace
+			if i > 0 && len(rr) > i+1 {
+				prevChar := rr[i-1]
+				nextChar := rr[i+1]
+				i += 1 // Will move 1 char forward to skip next char, we are using it now
+				astring.Runes[ri-1] = nextChar
+				if prevChar == nextChar {
+					astring.Attrs[ri-1].Fg = FgColor(ColorRed)
+					astring.Attrs[ri-1].Style = uint8(StyleBold)
+				} else if prevChar == '_' {
+					astring.Attrs[ri-1].Fg = FgColor(ColorGreen)
+					astring.Attrs[ri-1].Style = uint8(StyleBold)
+				}
+				continue // No need to advance ri, used previous one
+
 			}
 		}
 		astring.Runes[ri] = r

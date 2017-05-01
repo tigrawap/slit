@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/tigrawap/slit/runes"
 	"errors"
-	"regexp"
 	"github.com/nsf/termbox-go"
+	"github.com/tigrawap/slit/runes"
+	"regexp"
 )
 
 type filterResult uint8
@@ -137,7 +137,7 @@ func IndexAll(searchFunc SearchFunc, runestack []rune) (indices [][]int) {
 			indices = append(indices, ret)
 			i = i + ret[1]
 		}
-		if i>= len(runestack){
+		if i >= len(runestack) {
 			break
 		}
 	}

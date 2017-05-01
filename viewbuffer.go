@@ -32,10 +32,10 @@ func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
 
 type fillResult struct {
 	lastChanged bool
-	newLines int
+	newLines    int
 }
 
-func (b *viewBuffer) fill() fillResult{
+func (b *viewBuffer) fill() fillResult {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -51,7 +51,7 @@ func (b *viewBuffer) fill() fillResult{
 			curPos := len(b.buffer) - 1
 			if b.buffer[curPos].Offset == data.Offset {
 				// Same line as current
-				if len(b.buffer[curPos].Str.Runes) != len(data.Str.Runes){
+				if len(b.buffer[curPos].Str.Runes) != len(data.Str.Runes) {
 					result.lastChanged = true
 					b.buffer[curPos] = data // Line changed, replacing
 				}
@@ -107,7 +107,7 @@ func (b *viewBuffer) backFill() {
 	}
 	//oldData := b.buffer[0:]
 	if len(b.buffer) > b.window*2 {
-		b.buffer = b.buffer[0: b.window*2] // shrinking forward-buffer
+		b.buffer = b.buffer[0 : b.window*2] // shrinking forward-buffer
 	}
 	oldDataLen := len(b.buffer)
 	b.buffer = append(b.buffer, newData...)              // Ensuring that got enough space, expanding if needed
@@ -213,10 +213,10 @@ func (b *viewBuffer) refresh() {
 	b.reset(b.currentLine().Pos)
 }
 
-func (b *viewBuffer) isFull() bool{
+func (b *viewBuffer) isFull() bool {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
-	if len(b.buffer) - b.pos < b.window {
+	if len(b.buffer)-b.pos < b.window {
 		return false
 	}
 	return true
@@ -225,8 +225,8 @@ func (b *viewBuffer) isFull() bool{
 func (b *viewBuffer) shiftToEnd() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
-	if len(b.buffer) - b.pos < b.window {
+	if len(b.buffer)-b.pos < b.window {
 		return
 	}
-	b.pos = len(b.buffer)  - b.window
+	b.pos = len(b.buffer) - b.window
 }

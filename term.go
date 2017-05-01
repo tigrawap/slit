@@ -34,7 +34,7 @@ type viewer struct {
 type action uint
 
 const (
-	NO_ACTION          action = iota
+	NO_ACTION action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
 )
@@ -229,7 +229,7 @@ func (v *viewer) draw() {
 func (v *viewer) navigate(direction int) {
 	v.buffer.shift(direction)
 	v.following = false
-	if config.follow && ! v.buffer.isFull(){
+	if config.follow && !v.buffer.isFull() {
 		v.following = true
 	}
 	v.draw()
@@ -238,7 +238,7 @@ func (v *viewer) navigate(direction int) {
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
 	v.navigate(-v.height) //not adding +1 since nothing on screen now
-	if config.follow{
+	if config.follow {
 		v.following = true
 	}
 }
@@ -403,7 +403,7 @@ func (v *viewer) termGui() {
 		fetcher: v.fetcher,
 	}
 	v.resize(termbox.Size())
-	if config.follow{
+	if config.follow {
 		v.navigateEnd()
 	}
 	wg.Add(3)
@@ -469,7 +469,6 @@ func (v *viewer) refill() {
 		}
 		return
 	}
-	v.draw()
 }
 
 func (v *viewer) refreshIfEmpty(ctx context.Context) {
@@ -485,7 +484,7 @@ loop:
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
-			if config.follow{
+			if config.follow {
 				break loop
 			}
 			v.buffer.lock.RLock()
@@ -518,7 +517,7 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 	delay := 10 * time.Millisecond
 	lastLine := Pos{0, 0}
 	var dataLine PosLine
-	loop:
+loop:
 	for {
 		select {
 		case <-ctx.Done():
@@ -549,7 +548,7 @@ func (f *viewer) updateLastLine(ctx context.Context) {
 	}
 }
 
-func (v *viewer) follow(ctx context.Context){
+func (v *viewer) follow(ctx context.Context) {
 	delay := 100 * time.Millisecond
 	lastOffset := v.fetcher.lastOffset()
 	for {
@@ -557,13 +556,13 @@ func (v *viewer) follow(ctx context.Context){
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
-			if !config.follow{
+			if !config.follow {
 				continue
 			}
-			if v.following{
+			if v.following {
 				prevOffset := lastOffset
 				lastOffset = v.fetcher.lastOffset()
-				if lastOffset != prevOffset{
+				if lastOffset != prevOffset {
 					go termbox.Interrupt()
 					select {
 					case requestRefill <- struct{}{}:

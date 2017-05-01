@@ -247,7 +247,7 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 }
 func (ib *infobar) switchSearchType() {
 	switch ib.mode {
-	case	ibModeExclude,
+	case ibModeExclude,
 		ibModeAppend,
 		ibModeSearch,
 		ibModeBackSearch,
@@ -400,7 +400,7 @@ func (v *infobar) syncSearchString() {
 	// TODO: Does not handle well very narrow screen
 	// TODO: All setCelling here need to be moved to some nicer wrapper funcs
 	var color termbox.Attribute
-	switch v.mode{
+	switch v.mode {
 	case ibModeKeepCharacters:
 		color = termbox.ColorYellow
 	default:
