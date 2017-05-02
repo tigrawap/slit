@@ -502,7 +502,7 @@ loop:
 			locked = false
 			if config.stdin && config.isStdinRead() {
 				refresh()
-				break
+				break loop
 			}
 			delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
 			refresh()
