@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"errors"
+	"os"
+)
 
 func max(a, b int) int {
 	if a > b {
@@ -43,5 +46,22 @@ func openRewrite(path string) *os.File {
 	}
 	check(err)
 	return f
+}
 
+func validateRegularFile(filename string) error {
+	fi, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return errors.New(filename + ": No such file or directory")
+	} else if os.IsPermission(err) {
+		return errors.New(filename + ": Permission denied")
+	} else if err != nil {
+		return err
+	}
+	switch fmode := fi.Mode(); {
+	case fmode.IsDir():
+		return errors.New(filename + " is a directory")
+	case !fmode.IsRegular():
+		return errors.New(filename + " is not a regular file")
+	}
+	return nil
 }
