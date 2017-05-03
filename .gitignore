@@ -1,6 +1,7 @@
 .idea
 .DS_Store
 *.log
+*.sw[pno]
 slit_windows_amd64.exe
 slit_windows_386.exe
 slit_darwin_386
