@@ -123,26 +123,29 @@ var stylesMap = map[uint8]termbox.Attribute{
 }
 
 func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
-	if v.keepChars > 0 && !v.wrap {
-		shift := min(v.hOffset, v.keepChars)
-		if v.keepChars > 0 {
-			if shift < len(chars) {
-				chars = chars[shift:]
-				attrs = attrs[shift:]
-			}
-			keptChars := make([]rune, shift, shift+len(chars))
-			keptAttrs := make([]ansi.RuneAttr, shift, shift+len(chars))
-			copy(keptChars, data.Runes[:min(shift, len(data.Runes))])
-			copy(keptAttrs, data.Attrs[:min(shift, len(data.Runes))])
-			chars = append(keptChars, chars...)
-			attrs = append(keptAttrs, attrs...)
-			for i := 0; i < v.keepChars && i < len(chars); i++ {
-				attr := &attrs[i]
-				attr.Fg = ansi.FgColor(ansi.ColorBlue)
-				//attr.Bg = ansi.BgColor(ansi.ColorBlue)
-				//attr.Style = uint8(ansi.StyleBold)
-			}
-		}
+	if v.keepChars <= 0 || v.wrap {
+		return chars, attrs
+	}
+	dataLen := len(data.Runes)
+	if dataLen > v.keepChars {
+		rightSliceBegin := min(v.keepChars+v.hOffset, dataLen)
+		chars = append(
+			append([]rune(nil), data.Runes[:v.keepChars]...),
+			data.Runes[rightSliceBegin:]...,
+		)
+		attrs = append(
+			append([]ansi.RuneAttr(nil), data.Attrs[:v.keepChars]...),
+			data.Attrs[rightSliceBegin:]...,
+		)
+	} else {
+		chars = append([]rune(nil), data.Runes...)
+		attrs = append([]ansi.RuneAttr(nil), data.Attrs...)
+	}
+	for i := 0; i < v.keepChars && i < len(chars); i++ {
+		attr := &attrs[i]
+		attr.Fg = ansi.FgColor(ansi.ColorBlue)
+		//attr.Bg = ansi.BgColor(ansi.ColorBlue)
+		//attr.Style = uint8(ansi.StyleBold)
 	}
 	return chars, attrs
 }
@@ -158,6 +161,7 @@ func (v *viewer) draw() {
 	var hlIndices [][]int
 	var hlChars int
 	var tx int
+	var sliceFromIdx int
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
@@ -165,14 +169,12 @@ func (v *viewer) draw() {
 		if err == io.EOF {
 			break
 		}
-		if v.hOffset > len(data.Runes)-1 {
-			chars = data.Runes[:0]
-			attrs = data.Attrs[:0]
-		} else {
-			chars = data.Runes[v.hOffset:]
-			attrs = data.Attrs[v.hOffset:]
-		}
-		chars, attrs = v.replaceWithKeptChars(chars, attrs, data)
+		sliceFromIdx = min(v.hOffset, len(data.Runes))
+		chars, attrs = v.replaceWithKeptChars(
+			data.Runes[sliceFromIdx:],
+			data.Attrs[sliceFromIdx:],
+			data,
+		)
 		hlIndices = [][]int{}
 		if len(v.search) != 0 {
 			searchFunc, err := getSearchFunc(v.info.searchType, v.search)
