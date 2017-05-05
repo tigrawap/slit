@@ -55,7 +55,7 @@ func IndexAll(runestack, sub []rune) (indices []int) {
 		ret = Index(runestack[i:], sub)
 		f++
 		if f > 100 {
-			panic("Too many occurences")
+			panic("Too many occurrences")
 		}
 		if ret == -1 {
 			break
