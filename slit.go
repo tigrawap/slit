@@ -16,6 +16,8 @@ import (
 	"sync"
 )
 
+const VERSION = "1.1.4"
+
 func check(e error) {
 	if e != nil {
 		panic(e)
@@ -64,8 +66,6 @@ func (c *Config) isStdinRead() bool {
 	}
 
 }
-
-const VERSION = "1.1.2"
 
 func main() {
 	flag.StringVarP(&config.outPath, "output", "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
