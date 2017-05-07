@@ -23,10 +23,11 @@ Keep in mind however they might be some commits behind master branch.
 
 ### Key Bindings:  
 
-- `/` - forward search  
-- `?` - backsearch  
-- `n` - next match
-- `N` - previous match
+##### Search/Filters
+- `/` - Forward search  
+- `?` - Backsearch  
+- `n` - Next match
+- `N` - Previous match
 - `CTRL + /` - Switch between `CaseSensitive` search and `RegEx`
 - `&` - Filter: intersect
 - `-` - Filter: exclude
@@ -34,13 +35,21 @@ Keep in mind however they might be some commits behind master branch.
 - `=` - Remove all filters
 - `U` - Removes last filter
 - `C` - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
-- `W` - Wrap/Unwrap lines
+
+##### Navigation
 - `f`, `PageDown`, `Space` - Page Down
 - `b`, `PageUp` - Page Up
 - `g`, `Home` - Go to first line
 - `G`, `End` - Go to last line
+- `Arrow down`, `j` - Move one line down
+- `Arrow up`, `k` - Move one line up
+- `Arrow left`, `Arrow right` - Scroll horizontally
+- `<`, `>` - Precise horizontal scrolling, 1 character a time
+   
+##### Misc
 - `K` - Keep N first characters(usually containing timestamp) when navigating horizontally  
     Up/Down arrows during K-mode will adjust N of kept chars 
+- `W` - Wrap/Unwrap lines
 - `q` - quit
 
 ### Search Modes
