@@ -34,7 +34,7 @@ type viewer struct {
 type action uint
 
 const (
-	NO_ACTION action = iota
+	NO_ACTION          action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
 )
@@ -251,19 +251,21 @@ func (v *viewer) navigateStart() {
 	v.draw()
 }
 
-func (v *viewer) navigateRight() {
+func (v *viewer) navigateHorizontally(direction int) {
 	v.wrap = false
-	v.hOffset += v.width / 2
-	v.draw()
-}
-
-func (v *viewer) navigateLeft() {
-	v.wrap = false
-	v.hOffset -= v.width / 2
+	v.hOffset += direction
 	if v.hOffset < 0 {
 		v.hOffset = 0
 	}
 	v.draw()
+}
+
+func (v *viewer) navigateRight() {
+	v.navigateHorizontally(v.width / 2)
+}
+
+func (v *viewer) navigateLeft() {
+	v.navigateHorizontally(-v.width / 2)
 }
 
 func (v *viewer) resetFocus() {
@@ -332,6 +334,10 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigate(+1)
 		case 'k':
 			v.navigate(-1)
+		case '>':
+			v.navigateHorizontally(+1)
+		case '<':
+			v.navigateHorizontally(-1)
 
 		}
 	} else {
