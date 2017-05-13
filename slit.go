@@ -73,6 +73,8 @@ func main() {
 	flag.BoolVarP(&config.follow, "follow", "f", false, "Will follow file/stdin")
 	showVersion := false
 	flag.BoolVar(&showVersion, "version", false, "Print version")
+	var keepChars int
+	flag.IntVarP(&keepChars, "keep-chars", "K", 0, "Initial num of chars kept during horizontal scrolling")
 	flag.Parse()
 	if showVersion {
 		fmt.Println("Slit Version: ", VERSION)
@@ -148,8 +150,9 @@ func main() {
 
 	wg.Add(1)
 	v := &viewer{
-		fetcher: newFetcher(f),
-		ctx:     ctx,
+		fetcher:   newFetcher(f),
+		ctx:       ctx,
+		keepChars: keepChars,
 	}
 	v.termGui()
 	cancel()
