@@ -37,7 +37,7 @@ type viewer struct {
 type action uint
 
 const (
-	NO_ACTION          action = iota
+	NO_ACTION action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
 )

@@ -15,7 +15,7 @@ import (
 	"sync"
 )
 
-const VERSION = "1.1.4"
+const VERSION = "1.1.5"
 
 func check(e error) {
 	if e != nil {
