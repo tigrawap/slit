@@ -50,6 +50,7 @@ Keep in mind however they might be some commits behind master branch.
 - `K` - Keep N first characters(usually containing timestamp) when navigating horizontally  
     Up/Down arrows during K-mode will adjust N of kept chars 
 - `W` - Wrap/Unwrap lines
+- `CTRL+S` - Save filtered version to file (will prompt for filepath)
 - `q` - quit
 
 ### Search Modes
@@ -64,6 +65,7 @@ To switch between modes press `CTRL + /` in search/filter input.
 ### Command line arguments  
 - `--follow -f` Follow file/stdin. All filters are applied to new data.  
 When navigating up from the end, following will be stopped and resumed on navigating to the end(shift+g) or just by scrolling down till the end
+- `--keep-chars=10`,`-K 10` - Predefines number of kept chars *(see K in key bindings)*
 - `--version` Displays version   
 
 ### Filters
