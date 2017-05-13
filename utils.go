@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"os"
+	"os/user"
+	"path/filepath"
 )
 
 func max(a, b int) int {
@@ -64,4 +66,26 @@ func validateRegularFile(filename string) error {
 		return errors.New(filename + " is not a regular file")
 	}
 	return nil
+}
+
+func getHomeDir() string {
+	currentUser, err := user.Current()
+	var homedir string
+	if err != nil {
+		homedir = os.Getenv("HOME")
+		if homedir == "" {
+			homedir = os.TempDir()
+		}
+	} else {
+		homedir = currentUser.HomeDir
+	}
+	return homedir
+}
+
+func expand(path string) string {
+	if len(path) == 0 || path[0] != '~' {
+		return path
+	}
+
+	return filepath.Join(getHomeDir(), path[1:])
 }

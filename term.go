@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"code.cloudfoundry.org/bytefmt"
 	"context"
+	"fmt"
 	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/logging"
 	"io"
+	"os"
 	"runtime"
 	"strconv"
 	"sync"
@@ -34,7 +37,7 @@ type viewer struct {
 type action uint
 
 const (
-	NO_ACTION action = iota
+	NO_ACTION          action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
 )
@@ -274,7 +277,12 @@ func (v *viewer) resetFocus() {
 	termbox.Flush()
 }
 
+func (v *viewer) onUserAction() {
+	v.info.reset(ibModeStatus)
+}
+
 func (v *viewer) processKey(ev termbox.Event) (a action) {
+	v.onUserAction()
 	if ev.Ch != 0 {
 		switch ev.Ch {
 		case 'W':
@@ -360,6 +368,10 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigateStart()
 		case termbox.KeyEnd:
 			v.navigateEnd()
+		case termbox.KeyCtrlS:
+			v.focus = &v.info
+			v.info.reset(ibModeSave)
+			v.info.setInput(v.fetcher.reader.Name() + ".filtered")
 		}
 	}
 	return
@@ -479,6 +491,28 @@ func (v *viewer) refill() {
 	}
 }
 
+func (v *viewer) saveFiltered(filename string) {
+	filename = expand(filename)
+	f, err := os.Create(filename)
+	if err != nil {
+		v.info.setMessage(ibMessage{str: "Err:" + err.Error(), color: termbox.ColorRed})
+		logging.Debug(err)
+		return
+	}
+	ctx := context.TODO() // TODO: Use cancel once viewer will be non blocked
+	lines := v.fetcher.Get(ctx, Pos{0, 0})
+	writer := bufio.NewWriterSize(f, 64*1024)
+	v.info.setMessage(ibMessage{str: "Saving...", color: termbox.ColorYellow})
+	for l := range lines {
+		//TODO: Re-Add colors information
+		writer.WriteString(string(l.Str.Runes))
+		writer.WriteByte('\n')
+	}
+	writer.Flush()
+	v.info.setMessage(ibMessage{str: fmt.Sprintf("Done! %s", filename), color: termbox.ColorGreen})
+	f.Close()
+}
+
 func (v *viewer) refreshIfEmpty(ctx context.Context) {
 	refresh := func() {
 		go termbox.Interrupt()
@@ -596,6 +630,8 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 		v.addFilter(search.str, FilterUnion)
 	case ibModeExclude:
 		v.addFilter(search.str, FilterExclude)
+	case ibModeSave:
+		v.saveFiltered(string(search.str))
 	case ibModeSearch:
 		v.search = search.str
 		v.forwardSearch = true

@@ -24,6 +24,8 @@ const (
 	ibModeFilter
 	ibModeAppend
 	ibModeExclude
+	ibModeSave
+	ibModeMessage
 	ibModeKeepCharacters
 )
 
@@ -40,6 +42,12 @@ type infobar struct {
 	keepChars      *int
 	history        ibHistory
 	searchType     SearchType
+	message        ibMessage
+}
+
+type ibMessage struct {
+	str   string
+	color termbox.Attribute
 }
 
 const ibHistorySize = 1000
@@ -71,12 +79,17 @@ func (v *infobar) reset(mode infobarMode) {
 	v.draw()
 }
 
-func (v *infobar) statusBar() {
-	v.flock.Lock()
-	defer v.flock.Unlock()
+func (v *infobar) clear() {
 	for i := 0; i < v.width; i++ {
 		termbox.SetCell(i, v.y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
+}
+
+func (v *infobar) statusBar() {
+	v.clear()
+	v.message = ibMessage{}
+	v.flock.Lock()
+	defer v.flock.Unlock()
 	str := []rune(fmt.Sprintf("%s/%d", *v.currentLine, v.totalLines))
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
@@ -109,6 +122,9 @@ func (v *infobar) draw() {
 	case ibModeExclude:
 		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorBlack)
 		v.showSearch()
+	case ibModeSave:
+		termbox.SetCell(0, v.y, '>', termbox.ColorMagenta, termbox.ColorBlack)
+		v.showSearch()
 	case ibModeAppend:
 		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorBlack)
 		v.showSearch()
@@ -119,9 +135,34 @@ func (v *infobar) draw() {
 		v.moveCursorToPosition(len(v.editBuffer))
 	case ibModeStatus:
 		v.statusBar()
+	case ibModeMessage:
+		v.showMessage()
 	default:
 		panic("Not implemented")
 	}
+}
+
+func (v *infobar) setInput(str string) {
+	v.editBuffer = []rune(str)
+	v.showSearch()
+	v.moveCursorToPosition(len(v.editBuffer))
+}
+
+func (v *infobar) setMessage(message ibMessage) {
+	logging.Debug("Setting message", message)
+	v.message = message
+	v.reset(ibModeMessage)
+}
+
+func (v *infobar) showMessage() {
+	v.clear()
+	logging.Debug("Showing message", v.message)
+	str := []rune(v.message.str)
+	for i := 0; i < len(str) && i+1 < v.width; i++ {
+		logging.Debug("Adding char", str[i])
+		termbox.SetCell(i+1, v.y, str[i], v.message.color, termbox.ColorDefault)
+	}
+	termbox.Flush()
 }
 
 func (v *infobar) navigateWord(forward bool) {
@@ -280,10 +321,12 @@ func (history *ibHistory) load() {
 }
 
 func (v *infobar) addToHistory() {
-	if v.mode == ibModeKeepCharacters {
+	switch v.mode {
+	case ibModeKeepCharacters, ibModeSave:
 		return
+	default:
+		v.history.add(v.editBuffer)
 	}
-	v.history.add(v.editBuffer)
 }
 
 func (history *ibHistory) add(str []rune) {
@@ -316,6 +359,7 @@ func (history *ibHistory) save(str []rune) {
 		history.trim()
 	}
 }
+
 func (history *ibHistory) trim() {
 	tmpPath := config.historyPath + "_tmp"
 	tmpFile := openRewrite(tmpPath)

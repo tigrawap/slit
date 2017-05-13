@@ -11,7 +11,6 @@ import (
 	//"net/http"
 	//_ "net/http/pprof"
 	"os"
-	"os/user"
 	"path/filepath"
 	"sync"
 )
@@ -28,17 +27,7 @@ func init() {
 	logging.Config.LogPath = filepath.Join(os.TempDir(), "slit.log")
 	slitdir := os.Getenv("SLIT_DIR")
 	if slitdir == "" {
-		currentUser, err := user.Current()
-		var homedir string
-		if err != nil {
-			homedir = os.Getenv("HOME")
-			if homedir == "" {
-				homedir = os.TempDir()
-			}
-		} else {
-			homedir = currentUser.HomeDir
-		}
-		slitdir = filepath.Join(homedir, ".slit")
+		slitdir = filepath.Join(getHomeDir(), ".slit")
 	}
 	config.historyPath = filepath.Join(slitdir, "history")
 	config.stdinFinished = make(chan struct{})
