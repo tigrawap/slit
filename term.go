@@ -210,8 +210,6 @@ func (v *viewer) draw() {
 				fg = fg | highlightStyle
 			}
 			termbox.SetCell(tx, ty, char, fg, bg)
-			if !v.wrap {
-			}
 			tx++
 			if tx >= v.width {
 				if v.wrap {

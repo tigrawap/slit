@@ -266,7 +266,7 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 	}()
 	go func() {
 		wg.Wait()
-		for _ = range lines { //draining lines, will act as lock for linebuilder
+		for range lines { //draining lines, will act as lock for linebuilder
 		}
 		f.lock.Unlock()
 	}()
