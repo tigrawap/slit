@@ -125,24 +125,30 @@ var stylesMap = map[uint8]termbox.Attribute{
 	7: termbox.AttrReverse,
 }
 
-func (v *viewer) replaceWithKeptChars(chars []rune, attrs []ansi.RuneAttr, data ansi.Astring) ([]rune, []ansi.RuneAttr) {
-	if v.keepChars <= 0 || v.wrap {
-		return chars, attrs
-	}
+func (v *viewer) replaceWithKeptChars(data ansi.Astring) ([]rune, []ansi.RuneAttr) {
 	dataLen := len(data.Runes)
+	if v.keepChars <= 0 || v.wrap {
+		sliceFromIdx := min(v.hOffset, dataLen)
+		return data.Runes[sliceFromIdx:], data.Attrs[sliceFromIdx:]
+	}
+
+	var chars []rune
+	var attrs []ansi.RuneAttr
+
 	if dataLen > v.keepChars {
+		chars = make([]rune, v.keepChars, dataLen)
+		attrs = make([]ansi.RuneAttr, v.keepChars, dataLen)
+		copy(chars, data.Runes[:v.keepChars])
+		copy(attrs, data.Attrs[:v.keepChars])
+
 		rightSliceBegin := min(v.keepChars+v.hOffset, dataLen)
-		chars = append(
-			append([]rune(nil), data.Runes[:v.keepChars]...),
-			data.Runes[rightSliceBegin:]...,
-		)
-		attrs = append(
-			append([]ansi.RuneAttr(nil), data.Attrs[:v.keepChars]...),
-			data.Attrs[rightSliceBegin:]...,
-		)
+		chars = append(chars, data.Runes[rightSliceBegin:]...)
+		attrs = append(attrs, data.Attrs[rightSliceBegin:]...)
 	} else {
-		chars = append([]rune(nil), data.Runes...)
-		attrs = append([]ansi.RuneAttr(nil), data.Attrs...)
+		chars = make([]rune, dataLen)
+		attrs = make([]ansi.RuneAttr, dataLen)
+		copy(chars, data.Runes)
+		copy(attrs, data.Attrs)
 	}
 	for i := 0; i < v.keepChars && i < len(chars); i++ {
 		attr := &attrs[i]
@@ -164,7 +170,6 @@ func (v *viewer) draw() {
 	var hlIndices [][]int
 	var hlChars int
 	var tx int
-	var sliceFromIdx int
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
@@ -172,12 +177,7 @@ func (v *viewer) draw() {
 		if err == io.EOF {
 			break
 		}
-		sliceFromIdx = min(v.hOffset, len(data.Runes))
-		chars, attrs = v.replaceWithKeptChars(
-			data.Runes[sliceFromIdx:],
-			data.Attrs[sliceFromIdx:],
-			data,
-		)
+		chars, attrs = v.replaceWithKeptChars(data)
 		hlIndices = [][]int{}
 		if len(v.search) != 0 {
 			searchFunc, err := getSearchFunc(v.info.searchType, v.search)
