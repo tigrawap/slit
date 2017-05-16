@@ -433,7 +433,6 @@ func (v *infobar) navigateHistory(i int) {
 	v.editBuffer = make([]rune, len(targetString))
 	copy(v.editBuffer, targetString)
 	onPosChange()
-	return
 }
 
 func (v *infobar) setPromptCell(x, y int, ch rune, fg, bg termbox.Attribute) {
