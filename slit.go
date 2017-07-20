@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	flag "github.com/ogier/pflag"
-	"github.com/tigrawap/slit/logging"
 	"io"
 	"io/ioutil"
+
+	flag "github.com/ogier/pflag"
+	"github.com/tigrawap/slit/logging"
 	//"log"
 	//"net/http"
 	//_ "net/http/pprof"
@@ -15,7 +16,7 @@ import (
 	"sync"
 )
 
-const VERSION = "1.1.5"
+const VERSION = "1.1.6"
 
 func check(e error) {
 	if e != nil {
@@ -132,7 +133,6 @@ func main() {
 			return
 		}
 	}
-
 
 	v := &viewer{
 		fetcher:   newFetcher(f),
