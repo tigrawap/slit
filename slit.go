@@ -73,8 +73,6 @@ func main() {
 	stdoutStat, _ := os.Stdout.Stat()
 	var f *os.File
 	var err error
-	var wg sync.WaitGroup
-	defer wg.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
 	if isPipe(stdinStat) {
 		config.stdin = true
@@ -97,7 +95,6 @@ func main() {
 		defer cacheFile.Close()
 		defer copyDone.Wait()
 		defer f.Close()
-		defer wg.Done()
 		copyDone.Add(1)
 		go func() {
 			var err error
@@ -129,7 +126,6 @@ func main() {
 		f, err = os.Open(filename)
 		check(err)
 		defer f.Close()
-		defer wg.Done()
 		if isPipe(stdoutStat) {
 			outputToStdout(f)
 			cancel()
@@ -137,7 +133,7 @@ func main() {
 		}
 	}
 
-	wg.Add(1)
+
 	v := &viewer{
 		fetcher:   newFetcher(f),
 		ctx:       ctx,
