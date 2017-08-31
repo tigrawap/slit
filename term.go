@@ -30,6 +30,7 @@ type viewer struct {
 	search        []rune
 	buffer        viewBuffer
 	keepChars     int
+	filters       []*Filter
 	ctx           context.Context
 	following     bool
 }
@@ -101,17 +102,21 @@ func (v *viewer) nextSearch(reverse bool) {
 	}
 }
 
+func (v *viewer) applyFilter(filter *Filter) {
+	v.fetcher.lock.Lock()
+	v.fetcher.filters = append(v.fetcher.filters, filter)
+	v.fetcher.filtersEnabled = true
+	v.buffer.reset(v.buffer.currentLine().Pos)
+	v.fetcher.lock.Unlock()
+}
+
 func (v *viewer) addFilter(sub []rune, action FilterAction) {
 	filter, err := NewFilter(sub, action, v.info.searchType)
 	if err != nil {
 		logging.Debug(err)
 		return
 	}
-	v.fetcher.lock.Lock()
-	v.fetcher.filters = append(v.fetcher.filters, filter)
-	v.fetcher.filtersEnabled = true
-	v.buffer.reset(v.buffer.currentLine().Pos)
-	v.fetcher.lock.Unlock()
+	v.applyFilter(filter)
 }
 
 func (v *viewer) switchFilters() {
@@ -313,18 +318,18 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case '/':
 			v.focus = &v.info
 			v.info.reset(ibModeSearch)
-		case '&':
+		case FilterIntersectChar:
 			v.focus = &v.info
 			v.info.reset(ibModeFilter)
+		case FilterUnionChar:
+			v.focus = &v.info
+			v.info.reset(ibModeAppend)
+		case FilterExcludeChar:
+			v.focus = &v.info
+			v.info.reset(ibModeExclude)
 		case '?':
 			v.focus = &v.info
 			v.info.reset(ibModeBackSearch)
-		case '+':
-			v.focus = &v.info
-			v.info.reset(ibModeAppend)
-		case '-':
-			v.focus = &v.info
-			v.info.reset(ibModeExclude)
 		case 'M':
 			reportSystemUsage()
 		case '=':
@@ -415,6 +420,9 @@ func (v *viewer) termGui() {
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
 		searchType:     CaseSensitive,
+	}
+	for _, filter := range v.filters {
+		v.applyFilter(filter)
 	}
 	v.focus = v
 	v.buffer = viewBuffer{

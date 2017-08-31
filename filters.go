@@ -1,13 +1,19 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/runes"
+	"os"
 	"regexp"
+	"strings"
+	"unicode"
 )
 
 type filterResult uint8
+
+const filterLineMinLength int = 2
 
 const (
 	filterNoaction filterResult = iota
@@ -36,6 +42,26 @@ var RegEx = SearchType{
 }
 var SearchTypeMap map[uint8]SearchType
 
+type FilterAction uint8
+
+const (
+	FilterIntersect FilterAction = iota
+	FilterUnion
+	FilterExclude
+)
+
+const (
+	FilterIntersectChar rune = '&'
+	FilterUnionChar     rune = '+'
+	FilterExcludeChar   rune = '-'
+)
+
+var FilterActionMap = map[rune]FilterAction{
+	FilterIntersectChar: FilterIntersect,
+	FilterUnionChar:     FilterUnion,
+	FilterExcludeChar:   FilterExclude,
+}
+
 func init() {
 	SearchTypeMap = make(map[uint8]SearchType)
 	// Should maintain order, otherwise history will be corrupted.
@@ -45,14 +71,6 @@ func init() {
 	}
 
 }
-
-type FilterAction uint8
-
-const (
-	FilterIntersect FilterAction = iota
-	FilterUnion
-	FilterExclude
-)
 
 // Follows regex return value pattern. nil if not found, slice of range if found
 // Filter does not really need it, but highlighting also must search and requires it
@@ -179,4 +197,53 @@ func buildExcludeFunc(searchFunc SearchFunc) ActionFunc {
 		}
 		return filterIncluded
 	}
+}
+
+func parseFilterLine(line string) (*Filter, error) {
+	filteredLine := []rune(strings.TrimLeftFunc(line, unicode.IsSpace))
+	if len(filteredLine) == 0 {
+		return nil, nil
+	}
+	if len(filteredLine) < filterLineMinLength {
+		return nil, errors.New("Filter is too short: " + string(filteredLine))
+	}
+	filterSign := filteredLine[0]
+	action, ok := FilterActionMap[filterSign]
+	if !ok {
+		return nil, errors.New("Unknown filter type \"" + string(filterSign) + "\"")
+	}
+	filter, err := NewFilter(
+		filteredLine[1:],
+		action,
+		CaseSensitive,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return filter, nil
+}
+
+func parseFiltersFile(filename string) ([]*Filter, error) {
+	if err := validateRegularFile(filename); err != nil {
+		return nil, err
+	}
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+
+	var filters []*Filter
+	for scanner.Scan() {
+		filter, err := parseFilterLine(scanner.Text())
+		if err != nil {
+			return nil, err
+		}
+		if filter == nil {
+			continue
+		}
+		filters = append(filters, filter)
+	}
+	return filters, nil
 }

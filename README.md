@@ -66,13 +66,13 @@ To switch between modes press `CTRL + /` in search/filter input.
 - `--follow -f` Follow file/stdin. All filters are applied to new data.  
 When navigating up from the end, following will be stopped and resumed on navigating to the end(shift+g) or just by scrolling down till the end
 - `--keep-chars=10`,`-K 10` - Predefines number of kept chars *(see K in key bindings)*
+- `--filters=nginx_php_errors` Specifies path to the file containing predefined filters *(see "Filters" section)*
 - `--version` Displays version   
 
 ### Filters
 - Inclusive(&): Will keep only lines that match the pattern AND included by previous filters
 - Exclusive(-): Filters out lines that match the pattern
 - Appending(+): Filters in lines that match pattern, even if they were excluded by previous filters
-
 
 Filters can be chained - The first 'append' filter (if it is the first to be used) will work as inclusive filter.
 When adding filters the active line position (at top of screen) will remain the same (as possible).
@@ -93,6 +93,14 @@ The following chain of filters will output the expected result:
 +Exception
 
 ```
+
+You can save the lines above to the separate file and specify its name in the command line argument `--filters`.
+
+Notes:
+- empty lines are ignored
+- leading spaces before filter sign (`&`, `+` or `-`) are ignored
+- trailing spaces (if present) are also part of the search string
+- all filters are case sensitive
 
 #### Filter TODOs:
 - Complex include/exclude filters, that will allow: (DEBUG OR INFO) AND NOT (send OR receive OR "pipe closed") 

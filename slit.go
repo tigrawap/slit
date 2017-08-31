@@ -65,6 +65,8 @@ func main() {
 	flag.BoolVar(&showVersion, "version", false, "Print version")
 	var keepChars int
 	flag.IntVarP(&keepChars, "keep-chars", "K", 0, "Initial num of chars kept during horizontal scrolling")
+	var filtersFilename string
+	flag.StringVarP(&filtersFilename, "filters", "", "", "Filters file name location")
 	flag.Parse()
 	if showVersion {
 		fmt.Println("Slit Version: ", VERSION)
@@ -134,10 +136,20 @@ func main() {
 		}
 	}
 
+	var initFilters []*Filter
+	if filtersFilename != "" {
+		initFilters, err = parseFiltersFile(filtersFilename)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+	}
+
 	v := &viewer{
 		fetcher:   newFetcher(f),
 		ctx:       ctx,
 		keepChars: keepChars,
+		filters:   initFilters,
 	}
 	v.termGui()
 	cancel()
