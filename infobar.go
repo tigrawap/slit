@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nsf/termbox-go"
+	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/runes"
+	"github.com/tigrawap/slit/utils"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -41,7 +43,7 @@ type infobar struct {
 	filtersEnabled *bool
 	keepChars      *int
 	history        ibHistory
-	searchType     SearchType
+	searchType     filters.SearchType
 	message        ibMessage
 }
 
@@ -294,11 +296,11 @@ func (ib *infobar) switchSearchType() {
 		ibModeBackSearch,
 		ibModeFilter:
 		st := ib.searchType
-		nextId := st.id + 1
-		if _, ok := SearchTypeMap[nextId]; !ok {
+		nextId := st.Id + 1
+		if _, ok := filters.SearchTypeMap[nextId]; !ok {
 			nextId = 0
 		}
-		nextSt := SearchTypeMap[nextId]
+		nextSt := filters.SearchTypeMap[nextId]
 		ib.searchType = nextSt
 		ib.draw()
 	}
@@ -362,7 +364,7 @@ func (history *ibHistory) save(str []rune) {
 
 func (history *ibHistory) trim() {
 	tmpPath := config.historyPath + "_tmp"
-	tmpFile := openRewrite(tmpPath)
+	tmpFile := utils.OpenRewrite(tmpPath)
 	writer := bufio.NewWriter(tmpFile)
 	keptHistory := history.buffer[len(history.buffer)-ibHistorySize/100*80:]
 	for _, str := range keptHistory {
@@ -447,7 +449,7 @@ func (v *infobar) syncSearchString() {
 	case ibModeKeepCharacters:
 		color = termbox.ColorYellow
 	default:
-		color = v.searchType.color
+		color = v.searchType.Color
 	}
 	for i := 0; i < v.width-promtLength; i++ {
 		ch := ' '
@@ -456,10 +458,10 @@ func (v *infobar) syncSearchString() {
 		}
 		v.setPromptCell(i, v.y, ch, color, termbox.ColorBlack)
 	}
-	runeName := []rune(v.searchType.name)
+	runeName := []rune(v.searchType.Name)
 	for i := v.width - len(runeName); i < v.width && i > promtLength; i++ {
 		c := i + len(runeName) - v.width
-		termbox.SetCell(i, v.y, runeName[c], v.searchType.color, termbox.ColorBlack)
+		termbox.SetCell(i, v.y, runeName[c], v.searchType.Color, termbox.ColorBlack)
 	}
 	termbox.Flush()
 }

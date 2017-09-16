@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 
 	flag "github.com/ogier/pflag"
+	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
+	"github.com/tigrawap/slit/utils"
 	//"log"
 	//"net/http"
 	//_ "net/http/pprof"
@@ -18,17 +20,11 @@ import (
 
 const VERSION = "1.1.6"
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 func init() {
 	logging.Config.LogPath = filepath.Join(os.TempDir(), "slit.log")
 	slitdir := os.Getenv("SLIT_DIR")
 	if slitdir == "" {
-		slitdir = filepath.Join(getHomeDir(), ".slit")
+		slitdir = filepath.Join(utils.GetHomeDir(), ".slit")
 	}
 	config.historyPath = filepath.Join(slitdir, "history")
 	config.stdinFinished = make(chan struct{})
@@ -65,8 +61,8 @@ func main() {
 	flag.BoolVar(&showVersion, "version", false, "Print version")
 	var keepChars int
 	flag.IntVarP(&keepChars, "keep-chars", "K", 0, "Initial num of chars kept during horizontal scrolling")
-	var filtersFilename string
-	flag.StringVarP(&filtersFilename, "filters", "", "", "Filters file name location")
+	var filtersOpt string
+	flag.StringVarP(&filtersOpt, "filters", "", "", "Filters file names or inline filters separated by semicolon")
 	flag.Parse()
 	if showVersion {
 		fmt.Println("Slit Version: ", VERSION)
@@ -87,13 +83,13 @@ func main() {
 		var cacheFile *os.File
 		if config.outPath == "" {
 			cacheFile, err = ioutil.TempFile(os.TempDir(), "slit_")
-			check(err)
+			utils.Check(err)
 			defer os.Remove(cacheFile.Name())
 		} else {
-			cacheFile = openRewrite(config.outPath)
+			cacheFile = utils.OpenRewrite(config.outPath)
 		}
 		f, err = os.Open(cacheFile.Name())
-		check(err)
+		utils.Check(err)
 		copyDone := sync.WaitGroup{}
 		defer cacheFile.Close()
 		defer copyDone.Wait()
@@ -122,12 +118,12 @@ func main() {
 			os.Exit(1)
 		}
 		filename := flag.Arg(0)
-		if err := validateRegularFile(filename); err != nil {
+		if err := utils.ValidateRegularFile(filename); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 		f, err = os.Open(filename)
-		check(err)
+		utils.Check(err)
 		defer f.Close()
 		if isPipe(stdoutStat) {
 			outputToStdout(f)
@@ -136,9 +132,9 @@ func main() {
 		}
 	}
 
-	var initFilters []*Filter
-	if filtersFilename != "" {
-		initFilters, err = parseFiltersFile(filtersFilename)
+	var initFilters []*filters.Filter
+	if filtersOpt != "" {
+		initFilters, err = filters.ParseFiltersOpt(filtersOpt)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
