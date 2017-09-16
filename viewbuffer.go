@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/tigrawap/slit/ansi"
+	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 	"io"
 	"sync"
@@ -160,7 +161,7 @@ func (b *viewBuffer) shift(direction int) {
 	}
 }
 
-func (b *viewBuffer) searchForward(searchFunc SearchFunc) int {
+func (b *viewBuffer) searchForward(searchFunc filters.SearchFunc) int {
 	for i, line := range b.buffer[b.pos:] {
 		if i == 0 {
 			// TODO: Maintain search index?( to navigate inside string)
@@ -173,7 +174,7 @@ func (b *viewBuffer) searchForward(searchFunc SearchFunc) int {
 	return -1
 }
 
-func (b *viewBuffer) searchBack(searchFunc SearchFunc) int {
+func (b *viewBuffer) searchBack(searchFunc filters.SearchFunc) int {
 	prevLines := b.buffer[:b.pos]
 	for i := 1; i <= len(prevLines); i++ {
 		if searchFunc(prevLines[len(prevLines)-i].Str.Runes) != nil {

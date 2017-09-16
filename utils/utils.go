@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"errors"
@@ -7,35 +7,41 @@ import (
 	"path/filepath"
 )
 
-func max(a, b int) int {
+func Check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+func Max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func min(a, b int) int {
+func Min(a, b int) int {
 	if a > b {
 		return b
 	}
 	return a
 }
 
-func max64(a, b int64) int64 {
+func Max64(a, b int64) int64 {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func min64(a, b int64) int64 {
+func Min64(a, b int64) int64 {
 	if a > b {
 		return b
 	}
 	return b
 }
 
-func openRewrite(path string) *os.File {
+func OpenRewrite(path string) *os.File {
 	var err error
 	var f *os.File
 	openFile := func() error {
@@ -46,11 +52,11 @@ func openRewrite(path string) *os.File {
 		os.Remove(path)
 		err = openFile()
 	}
-	check(err)
+	Check(err)
 	return f
 }
 
-func validateRegularFile(filename string) error {
+func ValidateRegularFile(filename string) error {
 	fi, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		return errors.New(filename + ": No such file or directory")
@@ -68,7 +74,7 @@ func validateRegularFile(filename string) error {
 	return nil
 }
 
-func getHomeDir() string {
+func GetHomeDir() string {
 	currentUser, err := user.Current()
 	var homedir string
 	if err != nil {
@@ -82,10 +88,10 @@ func getHomeDir() string {
 	return homedir
 }
 
-func expand(path string) string {
+func ExpandHomePath(path string) string {
 	if len(path) == 0 || path[0] != '~' {
 		return path
 	}
 
-	return filepath.Join(getHomeDir(), path[1:])
+	return filepath.Join(GetHomeDir(), path[1:])
 }

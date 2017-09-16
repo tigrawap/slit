@@ -66,10 +66,11 @@ To switch between modes press `CTRL + /` in search/filter input.
 - `--follow -f` Follow file/stdin. All filters are applied to new data.  
 When navigating up from the end, following will be stopped and resumed on navigating to the end(shift+g) or just by scrolling down till the end
 - `--keep-chars=10`,`-K 10` - Predefines number of kept chars *(see K in key bindings)*
-- `--filters=nginx_php_errors` Specifies path to the file containing predefined filters *(see "Filters" section)*
+- `--filters=nginx_php_errors` Specifies path to the file containing predefined filters or inline filters separated by semicolon *(see "Filters" section)*
 - `--version` Displays version   
 
 ### Filters
+
 - Inclusive(&): Will keep only lines that match the pattern AND included by previous filters
 - Exclusive(-): Filters out lines that match the pattern
 - Appending(+): Filters in lines that match pattern, even if they were excluded by previous filters
@@ -86,13 +87,14 @@ In addition, you want to see "Exception", even if it is on line that were exclud
 The following chain of filters will output the expected result:
 
 ```
-&Thread-10  
-+MainThread  
--receive  
--send  
+&Thread-10
++MainThread
+-receive
+-send
 +Exception
-
 ```
+
+#### Filter files
 
 You can save the lines above to the separate file and specify its name in the command line argument `--filters`.
 
@@ -102,7 +104,25 @@ Notes:
 - trailing spaces (if present) are also part of the search string
 - all filters are case sensitive
 
+#### Inline filters
+
+You can also add semicolon separated inline filters in the argument `--filters` with or without filter file names (the last  
+should also be separated by semicolon). E.g.
+
+```
+$ slit --filters="nginx_php_errors;-debug.php;+WARN" /var/log/nginx/error.log
+```
+
+will apply filters from file "nginx\_php\_errors" and then remove lines without substring "debug.php" and add the lines  
+with substring "WARN".
+
+Notes:
+- the first non-whitespace character should be a valid filter sign (see section "Filters"), otherwise this option item will be treated as a file name
+- leading semicolon characters are ignored
+- all other rules are the same as for filters in the separate files (see section "Filter files")
+
 #### Filter TODOs:
+
 - Complex include/exclude filters, that will allow: (DEBUG OR INFO) AND NOT (send OR receive OR "pipe closed") 
 - Filters menu for overviewing current filters, removal, reordering or disable some temporary
 

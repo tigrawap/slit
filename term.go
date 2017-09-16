@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/ansi"
+	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
+	"github.com/tigrawap/slit/utils"
 	"io"
 	"os"
 	"runtime"
@@ -30,7 +32,7 @@ type viewer struct {
 	search        []rune
 	buffer        viewBuffer
 	keepChars     int
-	filters       []*Filter
+	filters       []*filters.Filter
 	ctx           context.Context
 	following     bool
 }
@@ -57,7 +59,7 @@ type Navigator interface {
 }
 
 func (v *viewer) searchForward() {
-	searchFunc, err := getSearchFunc(v.info.searchType, v.search)
+	searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
 	if err != nil {
 		return
 	}
@@ -72,7 +74,7 @@ func (v *viewer) searchForward() {
 }
 
 func (v *viewer) searchBack() {
-	searchFunc, err := getSearchFunc(v.info.searchType, v.search)
+	searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
 	if err != nil {
 		return
 	}
@@ -102,7 +104,7 @@ func (v *viewer) nextSearch(reverse bool) {
 	}
 }
 
-func (v *viewer) applyFilter(filter *Filter) {
+func (v *viewer) applyFilter(filter *filters.Filter) {
 	v.fetcher.lock.Lock()
 	v.fetcher.filters = append(v.fetcher.filters, filter)
 	v.fetcher.filtersEnabled = true
@@ -110,8 +112,8 @@ func (v *viewer) applyFilter(filter *Filter) {
 	v.fetcher.lock.Unlock()
 }
 
-func (v *viewer) addFilter(sub []rune, action FilterAction) {
-	filter, err := NewFilter(sub, action, v.info.searchType)
+func (v *viewer) addFilter(sub []rune, action filters.FilterAction) {
+	filter, err := filters.NewFilter(sub, action, v.info.searchType)
 	if err != nil {
 		logging.Debug(err)
 		return
@@ -133,7 +135,7 @@ var stylesMap = map[uint8]termbox.Attribute{
 func (v *viewer) replaceWithKeptChars(data ansi.Astring) ([]rune, []ansi.RuneAttr) {
 	dataLen := len(data.Runes)
 	if v.keepChars <= 0 || v.wrap {
-		sliceFromIdx := min(v.hOffset, dataLen)
+		sliceFromIdx := utils.Min(v.hOffset, dataLen)
 		return data.Runes[sliceFromIdx:], data.Attrs[sliceFromIdx:]
 	}
 
@@ -146,7 +148,7 @@ func (v *viewer) replaceWithKeptChars(data ansi.Astring) ([]rune, []ansi.RuneAtt
 		copy(chars, data.Runes[:v.keepChars])
 		copy(attrs, data.Attrs[:v.keepChars])
 
-		rightSliceBegin := min(v.keepChars+v.hOffset, dataLen)
+		rightSliceBegin := utils.Min(v.keepChars+v.hOffset, dataLen)
 		chars = append(chars, data.Runes[rightSliceBegin:]...)
 		attrs = append(attrs, data.Attrs[rightSliceBegin:]...)
 	} else {
@@ -185,9 +187,9 @@ func (v *viewer) draw() {
 		chars, attrs = v.replaceWithKeptChars(data)
 		hlIndices = [][]int{}
 		if len(v.search) != 0 {
-			searchFunc, err := getSearchFunc(v.info.searchType, v.search)
+			searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
 			if err == nil {
-				hlIndices = IndexAll(searchFunc, chars)
+				hlIndices = filters.IndexAll(searchFunc, chars)
 			}
 		}
 		for i, char := range chars {
@@ -318,13 +320,13 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case '/':
 			v.focus = &v.info
 			v.info.reset(ibModeSearch)
-		case FilterIntersectChar:
+		case filters.FilterIntersectChar:
 			v.focus = &v.info
 			v.info.reset(ibModeFilter)
-		case FilterUnionChar:
+		case filters.FilterUnionChar:
 			v.focus = &v.info
 			v.info.reset(ibModeAppend)
-		case FilterExcludeChar:
+		case filters.FilterExcludeChar:
 			v.focus = &v.info
 			v.info.reset(ibModeExclude)
 		case '?':
@@ -419,7 +421,7 @@ func (v *viewer) termGui() {
 		filtersEnabled: &v.fetcher.filtersEnabled,
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
-		searchType:     CaseSensitive,
+		searchType:     filters.CaseSensitive,
 	}
 	for _, filter := range v.filters {
 		v.applyFilter(filter)
@@ -498,7 +500,7 @@ func (v *viewer) refill() {
 }
 
 func (v *viewer) saveFiltered(filename string) {
-	filename = expand(filename)
+	filename = utils.ExpandHomePath(filename)
 	f, err := os.Create(filename)
 	if err != nil {
 		v.info.setMessage(ibMessage{str: "Err:" + err.Error(), color: termbox.ColorRed})
@@ -552,7 +554,7 @@ loop:
 				refresh()
 				break loop
 			}
-			delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
+			delay = time.Duration(utils.Min64(int64(4000*time.Millisecond), int64(delay*2)))
 			refresh()
 		}
 	}
@@ -590,7 +592,7 @@ loop:
 				if delay == 0 {
 					delay = 10 * time.Millisecond
 				}
-				delay = time.Duration(min64(int64(4000*time.Millisecond), int64(delay*2)))
+				delay = time.Duration(utils.Min64(int64(4000*time.Millisecond), int64(delay*2)))
 			}
 		}
 	}
@@ -631,11 +633,11 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 	defer logging.Timeit("Got search request")()
 	switch search.mode {
 	case ibModeFilter:
-		v.addFilter(search.str, FilterIntersect)
+		v.addFilter(search.str, filters.FilterIntersect)
 	case ibModeAppend:
-		v.addFilter(search.str, FilterUnion)
+		v.addFilter(search.str, filters.FilterUnion)
 	case ibModeExclude:
-		v.addFilter(search.str, FilterExclude)
+		v.addFilter(search.str, filters.FilterExclude)
 	case ibModeSave:
 		v.saveFiltered(string(search.str))
 	case ibModeSearch:

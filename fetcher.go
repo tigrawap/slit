@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tigrawap/slit/ansi"
+	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 	"io"
 	"os"
@@ -21,7 +22,7 @@ type Fetcher struct {
 	lineReader       *bufio.Reader
 	lineReaderOffset Offset
 	lineReaderPos    int
-	filters          []*Filter
+	filters          []*filters.Filter
 	filtersEnabled   bool
 }
 
@@ -70,12 +71,12 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 	if len(f.filters) == 0 || !f.filtersEnabled {
 		return Line{str, l.Pos}
 	}
-	var action filterResult
+	var action filters.FilterResult
 	for _, filter := range f.filters {
-		action = filter.takeAction(str.Runes, action)
+		action = filter.TakeAction(str.Runes, action)
 	}
 	switch action {
-	case filterExcluded:
+	case filters.FilterExcluded:
 		return Line{Pos: Pos{Line: POS_FILTERED_OUT, Offset: l.Pos.Offset}}
 	default:
 		return Line{str, l.Pos}
@@ -274,7 +275,7 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 }
 
 // Returns position of next matching search
-func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc SearchFunc) (pos Pos) {
+func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
 	defer logging.Timeit("Searching")()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -288,7 +289,7 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc SearchFunc) (
 }
 
 // Returns position of next matching back-search
-func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc SearchFunc) (pos Pos) {
+func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
 	defer logging.Timeit("Back-Searching")()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
