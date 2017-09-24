@@ -77,7 +77,7 @@ func main() {
 	var f *os.File
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	if isPipe(stdinStat) {
+	if isPipe(stdinStat) && flag.NArg() == 0 {
 		config.stdin = true
 		if isPipe(stdoutStat) {
 			outputToStdout(os.Stdin)
