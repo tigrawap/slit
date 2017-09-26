@@ -89,9 +89,8 @@ func GetHomeDir() string {
 }
 
 func ExpandHomePath(path string) string {
-	if len(path) == 0 || path[0] != '~' {
+	if len(path) < 2 || path[:2] != "~"+string(os.PathSeparator) {
 		return path
 	}
-
-	return filepath.Join(GetHomeDir(), path[1:])
+	return filepath.Join(GetHomeDir(), path[2:])
 }
