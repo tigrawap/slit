@@ -39,8 +39,8 @@ build:
 
 test:
 	@echo -n "run tests... "
-	@go fmt
-	@go vet
+	@if [ ! -z "$(shell gofmt -l .)" ] ; then echo "gofmt had something to say:" && gofmt -l . && exit 1; fi
+	@go vet ./...
 	@echo ok
 
 clean:

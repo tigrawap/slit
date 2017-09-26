@@ -28,7 +28,7 @@ const (
 type Color uint8
 
 const (
-	ColorBlack   Color = iota
+	ColorBlack Color = iota
 	ColorRed
 	ColorGreen
 	ColorYellow
@@ -76,7 +76,7 @@ mainLoop:
 				}
 				attr.Fg, attr.Bg, attr.Style = 0, 0, 0
 				if distance != 0 {
-					data := string(rr[i+2: i+2+distance])
+					data := string(rr[i+2 : i+2+distance])
 					formats := strings.Split(data, ";")
 					for _, format := range formats {
 						// TODO: Can be optimized by using bytes directly
