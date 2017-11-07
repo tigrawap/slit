@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 )
 
 const VERSION = "1.1.6"
@@ -123,6 +124,10 @@ func main() {
 			os.Exit(1)
 		}
 		f, err = os.Open(filename)
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.EACCES {
+			fmt.Fprintf(os.Stderr, "%s: Permission denied\n", filename)
+			os.Exit(1)
+		}
 		utils.Check(err)
 		defer f.Close()
 		if isPipe(stdoutStat) {
