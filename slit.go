@@ -141,7 +141,7 @@ func main() {
 	if filtersOpt != "" {
 		initFilters, err = filters.ParseFiltersOpt(filtersOpt)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println(err)
 			os.Exit(1)
 		}
 	}
