@@ -113,25 +113,25 @@ func (v *infobar) showSearch() {
 func (v *infobar) draw() {
 	switch v.mode {
 	case ibModeBackSearch:
-		termbox.SetCell(0, v.y, '?', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '?', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeSearch:
-		termbox.SetCell(0, v.y, '/', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '/', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeFilter:
-		termbox.SetCell(0, v.y, '&', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '&', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeExclude:
-		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeSave:
-		termbox.SetCell(0, v.y, '>', termbox.ColorMagenta, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '>', termbox.ColorMagenta, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeAppend:
-		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeKeepCharacters:
-		termbox.SetCell(0, v.y, 'K', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, 'K', termbox.ColorGreen, termbox.ColorDefault)
 		v.editBuffer = []rune(strconv.Itoa(*v.keepChars))
 		v.showSearch()
 		v.moveCursorToPosition(len(v.editBuffer))
@@ -456,12 +456,12 @@ func (v *infobar) syncSearchString() {
 		if i < len(v.editBuffer) {
 			ch = v.editBuffer[i]
 		}
-		v.setPromptCell(i, v.y, ch, color, termbox.ColorBlack)
+		v.setPromptCell(i, v.y, ch, color, termbox.ColorDefault)
 	}
 	runeName := []rune(v.searchType.Name)
 	for i := v.width - len(runeName); i < v.width && i > promtLength; i++ {
 		c := i + len(runeName) - v.width
-		termbox.SetCell(i, v.y, runeName[c], v.searchType.Color, termbox.ColorBlack)
+		termbox.SetCell(i, v.y, runeName[c], v.searchType.Color, termbox.ColorDefault)
 	}
 	termbox.Flush()
 }
