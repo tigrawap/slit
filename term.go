@@ -166,13 +166,46 @@ func (v *viewer) replaceWithKeptChars(data ansi.Astring) ([]rune, []ansi.RuneAtt
 	return chars, attrs
 }
 
+func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
+	style := stylesMap[attr.Style]
+
+	// For "standard" 3-bit colors, convert to termbox attribute value (0-7)
+	// If bold attribute is set, shift the color value +8 for high intensity
+	// color AND continue to set the bold attribute before returning
+	if attr.Fg >= 30 && attr.Fg <= 37 {
+		fg = termbox.Attribute(attr.Fg - 30 + 1)
+		if style == termbox.AttrBold {
+			fg = fg | 1<<3
+		}
+	}
+	if attr.Bg >= 40 && attr.Bg <= 47 {
+		bg = termbox.Attribute(attr.Bg - 40 + 1)
+		if style == termbox.AttrBold {
+			bg = bg | 1<<3
+		}
+	}
+
+	// if none of the above conditions were matched, the attr color values are
+	// either 0 or a specific color code between 16-255, in which case we can
+	// use them unaltered
+	if fg == 0 {
+		fg = termbox.Attribute(attr.Fg)
+	}
+	if bg == 0 {
+		bg = termbox.Attribute(attr.Bg)
+	}
+
+	fg = fg | style
+	bg = bg | style
+
+	return fg, bg
+}
+
 func (v *viewer) draw() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	var chars []rune
 	var attrs []ansi.RuneAttr
 	var attr ansi.RuneAttr
-	var bg termbox.Attribute
-	var fg termbox.Attribute
 	var highlightStyle termbox.Attribute
 	var hlIndices [][]int
 	var hlChars int
@@ -194,8 +227,6 @@ func (v *viewer) draw() {
 		}
 		for i, char := range chars {
 			attr = attrs[i]
-			bg = termbox.ColorDefault
-			fg = termbox.ColorDefault
 			highlightStyle = termbox.Attribute(0)
 			if len(hlIndices) != 0 && hlChars == 0 {
 				if hlIndices[0][0] == i {
@@ -207,12 +238,9 @@ func (v *viewer) draw() {
 				highlightStyle = termbox.AttrReverse
 				hlChars--
 			}
-			if attr.Fg != 0 {
-				fg = termbox.Attribute(attr.Fg-30+1) | stylesMap[attr.Style]
-			}
-			if attr.Bg != 0 {
-				bg = termbox.Attribute(attr.Bg - 40 + 1)
-			}
+
+			fg, bg := ToTermboxAttr(attr)
+
 			if highlightStyle != termbox.Attribute(0) {
 				fg = fg | highlightStyle
 			}
