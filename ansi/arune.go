@@ -100,6 +100,10 @@ mainLoop:
 				continue
 				// Control sequence
 			}
+			if rr[i+1] == 40 || rr[i+1] == 41 { // [27 {40,41}] is charset shift sequence, ignore
+				i += 2 // all shift sequences are two bytes
+				continue
+			}
 		} else if r == 8 { // CTRL+H/Backspace
 			if i > 0 && len(rr) > i+1 {
 				prevChar := rr[i-1]
