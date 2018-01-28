@@ -196,7 +196,6 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	}
 
 	fg = fg | style
-	bg = bg | style
 
 	return fg, bg
 }
