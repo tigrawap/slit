@@ -53,7 +53,6 @@ func (c *Config) isStdinRead() bool {
 	default:
 		return false
 	}
-
 }
 
 type Slit struct {
@@ -96,16 +95,9 @@ func New(f *os.File) (*Slit, error) {
 }
 
 func NewFromStdin() (*Slit, error) {
-	var err error
-	var cacheFile *os.File
-
-	if config.outPath == "" {
-		cacheFile, err = ioutil.TempFile(os.TempDir(), "slit_")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cacheFile = utils.OpenRewrite(config.outPath)
+	cacheFile, err := mkCacheFile()
+	if err != nil {
+		return nil, err
 	}
 
 	f, err := os.Open(cacheFile.Name())
@@ -206,6 +198,15 @@ func main() {
 	}
 
 	s.Display()
+}
+
+func mkCacheFile() (f *os.File, err error) {
+	if config.outPath == "" {
+		f, err = ioutil.TempFile(os.TempDir(), "slit_")
+	} else {
+		f = utils.OpenRewrite(config.outPath)
+	}
+	return f, err
 }
 
 func exitOnErr(err error) {
