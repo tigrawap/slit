@@ -78,6 +78,7 @@ func main() {
 	s.SetKeepChars(keepChars)
 
 	s.Display()
+	s.Shutdown()
 }
 
 func exitOnErr(err error) {
