@@ -54,6 +54,7 @@ func (c *Config) isStdinRead() bool {
 	}
 }
 
+// Slit is a configured instance of the pager, ready to be displayed
 type Slit struct {
 	wg          sync.WaitGroup
 	ctx         context.Context
@@ -74,8 +75,8 @@ func (s *Slit) SetKeepChars(i int) { config.keepChars = i }
 // Set initial filters
 func (s *Slit) SetFilters(f []*filters.Filter) { config.initFilters = f }
 
+// Invoke the Slit UI
 func (s *Slit) Display() {
-	defer s.Shutdown()
 	v := &viewer{
 		fetcher:   newFetcher(s.file),
 		ctx:       s.ctx,
@@ -83,10 +84,12 @@ func (s *Slit) Display() {
 		filters:   config.initFilters,
 	}
 	v.termGui()
-	s.cancel()
 }
 
+// Shutdown and cleanup this pager instance. After instance shutdown,
+// it cannot be displayed again
 func (s *Slit) Shutdown() {
+	s.cancel()
 	s.wg.Wait()
 	s.file.Close()
 	if s.isCacheFile {
