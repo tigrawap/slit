@@ -471,8 +471,7 @@ func (v *viewer) termGui() {
 	go func() { v.follow(ctx); wg.Done() }()
 loop:
 	for {
-		ev := termbox.PollEvent()
-		switch ev.Type {
+		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			action := v.focus.processKey(ev)
 			switch action {
