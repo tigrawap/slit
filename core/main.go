@@ -123,12 +123,15 @@ func NewFromStream(ch chan string) (*Slit, error) {
 	s.isCacheFile = true
 
 	w := bufio.NewWriter(cacheFile)
+	lock := sync.Mutex{}
 	done := false
 
 	s.wg.Add(1)
 	go func() {
 		for _ = range time.Tick(100 * time.Millisecond) {
+			lock.Lock()
 			w.Flush()
+			lock.Unlock()
 			if done {
 				break
 			}
@@ -146,14 +149,16 @@ func NewFromStream(ch chan string) (*Slit, error) {
 		for {
 			select {
 			case line, ok := <-ch:
-				if !ok {
+				if !ok { // channel closed
 					return
 				}
+				lock.Lock()
 				_, err := w.WriteString(line + "\n")
 				if err != nil {
 					panic(err)
 					//return
 				}
+				lock.Unlock()
 			case <-s.ctx.Done():
 				return
 			}
