@@ -487,26 +487,35 @@ loop:
 		case termbox.EventError:
 			panic(ev.Err)
 		case termbox.EventInterrupt:
-			select {
-			case search := <-requestSearch:
-				v.processInfobarRequest(search)
-			case <-requestRefresh:
-				v.buffer.refresh()
-				v.draw()
-			case <-requestRefill: // It is not most efficient solution, it might cause huge amount of redraws
-				v.refill()
-			case line := <-requestStatusUpdate:
-				v.info.totalLines = line + 1
-				if v.focus == v {
-					v.info.draw()
+			var requestsHandled bool
+			// upon interrupt, loop until all requests have been fulfilled
+		reqLoop:
+			for {
+				if requestsHandled {
+					break reqLoop
 				}
-			case <-time.After(10 * time.Millisecond):
-				continue
-			case charChange := <-requestKeepCharsChange:
-				if v.keepChars+charChange >= 0 {
-					v.keepChars = v.keepChars + charChange
+				select {
+				case search := <-requestSearch:
+					v.processInfobarRequest(search)
+				case <-requestRefresh:
+					v.buffer.refresh()
+					v.draw()
+				case <-requestRefill: // It is not most efficient solution, it might cause huge amount of redraws
+					v.refill()
+				case line := <-requestStatusUpdate:
+					v.info.totalLines = line + 1
+					if v.focus == v {
+						v.info.draw()
+					}
+				case <-time.After(10 * time.Millisecond):
+					requestsHandled = true
+					continue
+				case charChange := <-requestKeepCharsChange:
+					if v.keepChars+charChange >= 0 {
+						v.keepChars = v.keepChars + charChange
+					}
+					v.draw()
 				}
-				v.draw()
 			}
 		}
 	}
@@ -555,14 +564,12 @@ func (v *viewer) saveFiltered(filename string) {
 
 func (v *viewer) refreshIfEmpty(ctx context.Context) {
 	refresh := func() {
-		go func() {
-			select {
-			case requestRefresh <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-		}()
-		termbox.Interrupt()
+		go termbox.Interrupt()
+		select {
+		case requestRefresh <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
 	}
 	delay := 3 * time.Millisecond
 	locked := false
@@ -615,14 +622,15 @@ loop:
 			dataLine = f.fetcher.advanceLines(lastLine)
 			lastLine = dataLine.Pos
 			if lastLine != prevLine {
-				go termbox.Interrupt()
-				select {
-				case requestStatusUpdate <- lastLine.Line:
-					f.fetcher.updateMap(dataLine)
-				case <-ctx.Done():
-					return
-
-				}
+				go func() {
+					select {
+					case requestStatusUpdate <- lastLine.Line:
+						f.fetcher.updateMap(dataLine)
+					case <-ctx.Done():
+						return
+					}
+				}()
+				termbox.Interrupt()
 				delay = 0
 			} else if config.stdin && config.isStdinRead() {
 				break loop
@@ -651,16 +659,15 @@ func (v *viewer) follow(ctx context.Context) {
 				prevOffset := lastOffset
 				lastOffset = v.fetcher.lastOffset()
 				if lastOffset != prevOffset {
-					go termbox.Interrupt()
-					select {
-					case requestRefill <- struct{}{}:
-					case <-ctx.Done():
-						return
-
-					}
-
+					go func() {
+						go termbox.Interrupt()
+						select {
+						case requestRefill <- struct{}{}:
+						case <-ctx.Done():
+							return
+						}
+					}()
 				}
-
 			}
 		}
 	}
