@@ -84,14 +84,14 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 
 }
 
-func newFetcher(reader *os.File) *Fetcher {
+func newFetcher(reader *os.File, ctx context.Context) *Fetcher {
 	f := &Fetcher{
 		reader:         reader,
 		lineMap:        map[Offset]LineNo{0: 0},
 		lineReader:     bufio.NewReaderSize(reader, 64*1024),
 		filtersEnabled: true,
 	}
-	go f.gcMap()
+	go f.gcMap(ctx)
 	return f
 }
 
@@ -410,29 +410,33 @@ func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
 	return ret
 }
 
-func (f *Fetcher) gcMap() {
+func (f *Fetcher) gcMap(ctx context.Context) {
 	for {
-		time.Sleep(100 * time.Millisecond)
-		f.mLock.RLock()
-		size := len(f.lineMap)
-		f.mLock.RUnlock()
-		if size < 1000 {
-			continue
-		}
-		f.mLock.Lock()
-		keys := make(offsetArr, len(f.lineMap))
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+			f.mLock.RLock()
+			size := len(f.lineMap)
+			f.mLock.RUnlock()
+			if size < 1000 {
+				continue
+			}
+			f.mLock.Lock()
+			keys := make(offsetArr, len(f.lineMap))
 
-		i := 0
-		for k := range f.lineMap {
-			keys[i] = k
-			i++
+			i := 0
+			for k := range f.lineMap {
+				keys[i] = k
+				i++
+			}
+			sort.Sort(keys)
+			toDelete := keys[:len(keys)-1000]
+			for _, k := range toDelete {
+				delete(f.lineMap, k)
+			}
+			f.mLock.Unlock()
 		}
-		sort.Sort(keys)
-		toDelete := keys[:len(keys)-1000]
-		for _, k := range toDelete {
-			delete(f.lineMap, k)
-		}
-		f.mLock.Unlock()
 	}
 }
 

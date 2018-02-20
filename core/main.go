@@ -78,7 +78,7 @@ func (s *Slit) SetFilters(f []*filters.Filter) { config.initFilters = f }
 // Invoke the Slit UI
 func (s *Slit) Display() {
 	v := &viewer{
-		fetcher:   newFetcher(s.file),
+		fetcher:   newFetcher(s.file, s.ctx),
 		ctx:       s.ctx,
 		keepChars: config.keepChars,
 		filters:   config.initFilters,
