@@ -434,10 +434,14 @@ func (v *viewer) termGui() {
 		panic(err)
 	}
 	defer termbox.Close()
+
 	wg := sync.WaitGroup{}
 	ctx, cancel := context.WithCancel(v.ctx)
-	defer wg.Wait()
-	defer cancel()
+	defer func() {
+		cancel()
+		wg.Wait()
+	}()
+
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.SetOutputMode(termbox.Output256)
 	v.info = infobar{
@@ -467,7 +471,8 @@ func (v *viewer) termGui() {
 	go func() { v.follow(ctx); wg.Done() }()
 loop:
 	for {
-		switch ev := termbox.PollEvent(); ev.Type {
+		ev := termbox.PollEvent()
+		switch ev.Type {
 		case termbox.EventKey:
 			action := v.focus.processKey(ev)
 			switch action {
@@ -550,8 +555,14 @@ func (v *viewer) saveFiltered(filename string) {
 
 func (v *viewer) refreshIfEmpty(ctx context.Context) {
 	refresh := func() {
-		go termbox.Interrupt()
-		requestRefresh <- struct{}{}
+		go func() {
+			select {
+			case requestRefresh <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+		}()
+		termbox.Interrupt()
 	}
 	delay := 3 * time.Millisecond
 	locked := false
@@ -559,7 +570,7 @@ loop:
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			break loop
 		case <-time.After(delay):
 			if config.follow {
 				break loop
@@ -598,7 +609,7 @@ loop:
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			break loop
 		case <-time.After(delay):
 			prevLine := lastLine
 			dataLine = f.fetcher.advanceLines(lastLine)
@@ -653,7 +664,6 @@ func (v *viewer) follow(ctx context.Context) {
 			}
 		}
 	}
-
 }
 
 func (v *viewer) processInfobarRequest(search infobarRequest) {
