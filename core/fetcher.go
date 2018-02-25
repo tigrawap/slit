@@ -125,7 +125,7 @@ func (f *Fetcher) seek(offset Offset) {
 	if f.lineReaderOffset == offset && f.lineReader != nil {
 		return // We are already there
 	}
-	f.reader.Seek(int64(offset), os.SEEK_SET)
+	f.reader.Seek(int64(offset), io.SeekStart)
 	f.lineReader = bufio.NewReaderSize(f.reader, 64*1024)
 	f.lineReaderOffset = offset
 }
