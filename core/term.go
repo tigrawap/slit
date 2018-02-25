@@ -486,13 +486,8 @@ loop:
 		case termbox.EventError:
 			panic(ev.Err)
 		case termbox.EventInterrupt:
-			var requestsHandled bool
-			// upon interrupt, loop until all requests have been fulfilled
 		reqLoop:
 			for {
-				if requestsHandled {
-					break reqLoop
-				}
 				select {
 				case search := <-requestSearch:
 					v.processInfobarRequest(search)
@@ -506,14 +501,13 @@ loop:
 					if v.focus == v {
 						v.info.draw()
 					}
-				case <-time.After(10 * time.Millisecond):
-					requestsHandled = true
-					continue
 				case charChange := <-requestKeepCharsChange:
 					if v.keepChars+charChange >= 0 {
 						v.keepChars = v.keepChars + charChange
 					}
 					v.draw()
+				case <-time.After(10 * time.Millisecond):
+					break reqLoop
 				}
 			}
 		}
