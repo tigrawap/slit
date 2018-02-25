@@ -32,8 +32,8 @@ func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
 }
 
 type fillResult struct {
-	lastChanged bool
-	newLines    int
+	lastLineChanged bool
+	newLines        int
 }
 
 func (b *viewBuffer) fill() fillResult {
@@ -53,7 +53,7 @@ func (b *viewBuffer) fill() fillResult {
 			if b.buffer[curPos].Offset == data.Offset {
 				// Same line as current
 				if len(b.buffer[curPos].Str.Runes) != len(data.Str.Runes) {
-					result.lastChanged = true
+					result.lastLineChanged = true
 					b.buffer[curPos] = data // Line changed, replacing
 				}
 				continue
