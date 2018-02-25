@@ -531,7 +531,7 @@ func (v *viewer) refill() {
 			v.draw()
 			continue
 		}
-		if result.lastChanged {
+		if result.lastLineChanged {
 			v.draw()
 			continue
 		}
