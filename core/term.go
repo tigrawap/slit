@@ -486,8 +486,6 @@ loop:
 		case termbox.EventError:
 			panic(ev.Err)
 		case termbox.EventInterrupt:
-		reqLoop:
-			for {
 				select {
 				case search := <-requestSearch:
 					v.processInfobarRequest(search)
@@ -506,10 +504,7 @@ loop:
 						v.keepChars = v.keepChars + charChange
 					}
 					v.draw()
-				case <-time.After(10 * time.Millisecond):
-					break reqLoop
 				}
-			}
 		}
 	}
 
@@ -615,15 +610,13 @@ loop:
 			dataLine = f.fetcher.advanceLines(lastLine)
 			lastLine = dataLine.Pos
 			if lastLine != prevLine {
-				go func() {
-					select {
-					case requestStatusUpdate <- lastLine.Line:
-						f.fetcher.updateMap(dataLine)
-					case <-ctx.Done():
-						return
-					}
-				}()
-				termbox.Interrupt()
+				go termbox.Interrupt()
+				select {
+				case requestStatusUpdate <- lastLine.Line:
+					f.fetcher.updateMap(dataLine)
+				case <-ctx.Done():
+					return
+				}
 				delay = 0
 			} else if config.stdin && config.isStdinRead() {
 				break loop
