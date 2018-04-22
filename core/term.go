@@ -594,7 +594,7 @@ loop:
 	}
 }
 
-func (f *viewer) updateLastLine(ctx context.Context) {
+func (v *viewer) updateLastLine(ctx context.Context) {
 	delay := 10 * time.Millisecond
 	lastLine := Pos{0, 0}
 	var dataLine PosLine
@@ -605,13 +605,13 @@ loop:
 			break loop
 		case <-time.After(delay):
 			prevLine := lastLine
-			dataLine = f.fetcher.advanceLines(lastLine)
+			dataLine = v.fetcher.advanceLines(lastLine)
 			lastLine = dataLine.Pos
 			if lastLine != prevLine {
 				go termbox.Interrupt()
 				select {
 				case requestStatusUpdate <- lastLine.Line:
-					f.fetcher.updateMap(dataLine)
+					v.fetcher.updateMap(dataLine)
 				case <-ctx.Done():
 					return
 				}
