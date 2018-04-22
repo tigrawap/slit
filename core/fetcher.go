@@ -202,9 +202,8 @@ func (f *Fetcher) lineBuilder(ctx context.Context) (chan<- PosLine, <-chan Line)
 	return feeder, lines
 }
 
-// Returns channel for yielding lines. Channel will be closed when no more lines to send
+// Get returns channel for yielding lines. Channel will be closed when no more lines to send
 // Client should close context when no more lines needed
-//
 func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 	ret := make(chan Line, 500)
 	startFrom, err := f.findLine(from.Offset)
@@ -272,7 +271,7 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 	return ret
 }
 
-// Returns position of next matching search
+// Search returns position of next matching search
 func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
 	defer logging.Timeit("Searching")()
 	ctx, cancel := context.WithCancel(ctx)
@@ -286,7 +285,7 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.Searc
 	return POS_NOT_FOUND
 }
 
-// Returns position of next matching back-search
+// SearchBack returns position of next matching back-search
 func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
 	defer logging.Timeit("Back-Searching")()
 	ctx, cancel := context.WithCancel(ctx)
