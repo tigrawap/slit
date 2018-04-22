@@ -19,7 +19,6 @@ import (
 )
 
 type viewer struct {
-	pos           int
 	hOffset       int
 	width         int
 	height        int
@@ -27,7 +26,6 @@ type viewer struct {
 	fetcher       *Fetcher
 	focus         Focusing
 	info          infobar
-	searchMode    infobarMode
 	forwardSearch bool
 	search        []rune
 	buffer        viewBuffer
