@@ -296,11 +296,11 @@ func (v *infobar) switchSearchType() {
 		ibModeBackSearch,
 		ibModeFilter:
 		st := v.searchType
-		nextId := st.Id + 1
-		if _, ok := filters.SearchTypeMap[nextId]; !ok {
-			nextId = 0
+		nextID := st.ID + 1
+		if _, ok := filters.SearchTypeMap[nextID]; !ok {
+			nextID = 0
 		}
-		nextSt := filters.SearchTypeMap[nextId]
+		nextSt := filters.SearchTypeMap[nextID]
 		v.searchType = nextSt
 		v.draw()
 	}
