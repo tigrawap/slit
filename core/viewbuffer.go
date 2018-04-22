@@ -151,14 +151,10 @@ func (b *viewBuffer) shift(direction int) {
 	}
 
 	b.fill()
-	if downShift() {
+	if downShift() || len(b.buffer) == 0 {
 		return
-	} else {
-		if len(b.buffer) == 0 {
-			return
-		}
-		b.pos = len(b.buffer) - 1
 	}
+	b.pos = len(b.buffer) - 1
 }
 
 func (b *viewBuffer) searchForward(searchFunc filters.SearchFunc) int {
@@ -188,9 +184,8 @@ func (b *viewBuffer) lastLine() Line {
 	lastLine := len(b.buffer) - 1
 	if lastLine != -1 {
 		return b.buffer[lastLine]
-	} else {
-		return Line{}
 	}
+	return Line{}
 }
 
 func (b *viewBuffer) currentLine() Line {

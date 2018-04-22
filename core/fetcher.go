@@ -42,9 +42,8 @@ type Pos struct {
 func (l Pos) String() string {
 	if l.Line == POS_UNKNOWN {
 		return fmt.Sprintf("b%d", l.Offset)
-	} else {
-		return fmt.Sprintf("%d", l.Line+1)
 	}
+	return fmt.Sprintf("%d", l.Line+1)
 }
 
 var POS_NOT_FOUND = Pos{-1, -1}
@@ -110,9 +109,8 @@ func (f *Fetcher) findLine(offset Offset) (Offset, error) {
 	if err != nil {
 		if err == io.EOF {
 			return POS_UNKNOWN, err
-		} else {
-			panic(fmt.Sprintf("Unhandled error during findLine: %s", err))
 		}
+		panic(fmt.Sprintf("Unhandled error during findLine: %s", err))
 	}
 
 	return f.lineReaderOffset, nil
@@ -313,14 +311,12 @@ func (f *Fetcher) advanceLines(from Pos) PosLine {
 		str, offset, err := f.readline()
 		if err == io.EOF && len(str) == 0 {
 			return ret
-		} else {
-			ret.b, ret.Offset, ret.Line = str, offset, i
-			if err == io.EOF {
-				ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
-				return ret
-			}
 		}
-
+		ret.b, ret.Offset, ret.Line = str, offset, i
+		if err == io.EOF {
+			ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
+			return ret
+		}
 		if i >= 3500+from.Line {
 			return ret
 		}
@@ -330,15 +326,14 @@ func (f *Fetcher) advanceLines(from Pos) PosLine {
 
 func (f *Fetcher) lastOffset() Offset {
 	stat, err := f.reader.Stat()
-	if err == nil {
-		if stat.Size() == 0 {
-			return Offset(0)
-		}
-		return Offset(stat.Size() - 1)
-	} else {
+	if err != nil {
 		logging.Debug(fmt.Sprintf("Error retrieving stat from file: %s", err))
 		return Offset(0)
 	}
+	if stat.Size() == 0 {
+		return Offset(0)
+	}
+	return Offset(stat.Size() - 1)
 }
 
 const fetchBackStep = 64 * 1024
@@ -452,9 +447,8 @@ func (f *Fetcher) resolveLine(o Offset) LineNo {
 	defer f.mLock.Unlock()
 	if lineNum, ok := f.lineMap[o]; ok {
 		return lineNum
-	} else {
-		return POS_UNKNOWN
 	}
+	return POS_UNKNOWN
 }
 
 func (f *Fetcher) removeLastFilter() bool {

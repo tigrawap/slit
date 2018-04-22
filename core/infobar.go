@@ -418,14 +418,12 @@ func (v *infobar) navigateHistory(i int) {
 		v.syncSearchString()
 	}
 	if target == 0 {
-		if v.history.pos == 0 {
-			return // Does not matter where we are going, but nothing to do here.
-		} else {
+		if v.history.pos != 0 {
 			v.history.pos = target
 			v.editBuffer = v.history.currentInput
 			onPosChange()
-			return
 		}
+		return // Does not matter where we are going, but nothing to do here.
 	}
 	if v.history.pos == 0 { // Moved out from zero-search to existing search string
 		v.history.currentInput = v.editBuffer
