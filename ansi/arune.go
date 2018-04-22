@@ -108,7 +108,7 @@ mainLoop:
 			if i > 0 && len(rr) > i+1 {
 				prevChar := rr[i-1]
 				nextChar := rr[i+1]
-				i += 1 // Will move 1 char forward to skip next char, we are using it now
+				i++ // Will move 1 char forward to skip next char, we are using it now
 				astring.Runes[ri-1] = nextChar
 				if prevChar == nextChar {
 					astring.Attrs[ri-1].Fg = FgColor(ColorRed)

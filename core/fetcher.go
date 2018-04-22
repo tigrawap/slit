@@ -192,7 +192,7 @@ func (f *Fetcher) lineBuilder(ctx context.Context) (chan<- PosLine, <-chan Line)
 					buffer[i] = f.filteredLine(l)
 					wg.Done()
 				}(bLen, l)
-				bLen += 1
+				bLen++
 			}
 			if bLen == bufSize {
 				flush()
