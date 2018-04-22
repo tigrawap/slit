@@ -46,7 +46,7 @@ func BgColor(color Color) uint8 {
 	return uint8(color) + 40
 }
 
-//Returns new Astring, struct containing bytes converted to runes and ansi attributes per rune
+// NewAstring returns new Astring, struct containing bytes converted to runes and ansi attributes per rune
 func NewAstring(src []byte) Astring {
 	var distance int
 	var attr RuneAttr
