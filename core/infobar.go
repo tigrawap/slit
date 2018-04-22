@@ -186,7 +186,7 @@ func (v *infobar) findWord(forward bool) (pos int) {
 		if v.editBuffer[i] == ' ' {
 			pos = i
 			if !forward {
-				pos += 1
+				pos++
 			}
 			break
 		}
