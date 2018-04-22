@@ -8,11 +8,11 @@ type UnknownFilterTypeError struct {
 }
 
 func (e *UnknownFilterTypeError) Error() string {
-	out_msg := fmt.Sprintf("Unknown filter type \"%s\"", e.FilterTypeStr)
+	outMsg := fmt.Sprintf("Unknown filter type \"%s\"", e.FilterTypeStr)
 	if e.Filename != "" {
-		out_msg += fmt.Sprintf(" in \"%s\"", e.Filename)
+		outMsg += fmt.Sprintf(" in \"%s\"", e.Filename)
 	}
-	return out_msg
+	return outMsg
 }
 
 type FilterTooShortError struct {
@@ -21,9 +21,9 @@ type FilterTooShortError struct {
 }
 
 func (e *FilterTooShortError) Error() string {
-	out_msg := fmt.Sprintf("Filter \"%s\" is too short", e.FilterStr)
+	outMsg := fmt.Sprintf("Filter \"%s\" is too short", e.FilterStr)
 	if e.Filename != "" {
-		out_msg += fmt.Sprintf(" in \"%s\"", e.Filename)
+		outMsg += fmt.Sprintf(" in \"%s\"", e.Filename)
 	}
-	return out_msg
+	return outMsg
 }
