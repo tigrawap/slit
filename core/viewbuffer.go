@@ -217,10 +217,7 @@ func (b *viewBuffer) refresh() {
 func (b *viewBuffer) isFull() bool {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
-	if len(b.buffer)-b.pos < b.window {
-		return false
-	}
-	return true
+	return len(b.buffer)-b.pos >= b.window
 }
 
 func (b *viewBuffer) shiftToEnd() {
