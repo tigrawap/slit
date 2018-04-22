@@ -288,21 +288,21 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 	}
 	return
 }
-func (ib *infobar) switchSearchType() {
-	switch ib.mode {
+func (v *infobar) switchSearchType() {
+	switch v.mode {
 	case ibModeExclude,
 		ibModeAppend,
 		ibModeSearch,
 		ibModeBackSearch,
 		ibModeFilter:
-		st := ib.searchType
+		st := v.searchType
 		nextId := st.Id + 1
 		if _, ok := filters.SearchTypeMap[nextId]; !ok {
 			nextId = 0
 		}
 		nextSt := filters.SearchTypeMap[nextId]
-		ib.searchType = nextSt
-		ib.draw()
+		v.searchType = nextSt
+		v.draw()
 	}
 }
 
