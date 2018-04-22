@@ -437,10 +437,10 @@ func (f *Fetcher) gcMap() {
 }
 
 func (f *Fetcher) updateMap(pos PosLine) {
-	f.mLock.RLock()
+	f.mLock.Lock()
 	f.lineMap[pos.Offset+Offset(len(pos.b))] = pos.Line
 	f.lineMap[pos.Offset] = pos.Line
-	f.mLock.RUnlock()
+	f.mLock.Unlock()
 }
 
 func (f *Fetcher) resolveLine(o Offset) LineNo {
