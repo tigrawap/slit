@@ -56,8 +56,8 @@ func NewAstring(src []byte) Astring {
 	rr := bytes.Runes(src)
 	max := len(rr)
 	astring := Astring{
-		make([]rune, max, max),
-		make([]RuneAttr, max, max),
+		make([]rune, max),
+		make([]RuneAttr, max),
 	}
 	ri := 0
 mainLoop:
