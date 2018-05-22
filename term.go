@@ -1,4 +1,4 @@
-package core
+package slit
 
 import (
 	"bufio"
@@ -484,25 +484,25 @@ loop:
 		case termbox.EventError:
 			panic(ev.Err)
 		case termbox.EventInterrupt:
-				select {
-				case search := <-requestSearch:
-					v.processInfobarRequest(search)
-				case <-requestRefresh:
-					v.buffer.refresh()
-					v.draw()
-				case <-requestRefill: // It is not most efficient solution, it might cause huge amount of redraws
-					v.refill()
-				case line := <-requestStatusUpdate:
-					v.info.totalLines = line + 1
-					if v.focus == v {
-						v.info.draw()
-					}
-				case charChange := <-requestKeepCharsChange:
-					if v.keepChars+charChange >= 0 {
-						v.keepChars = v.keepChars + charChange
-					}
-					v.draw()
+			select {
+			case search := <-requestSearch:
+				v.processInfobarRequest(search)
+			case <-requestRefresh:
+				v.buffer.refresh()
+				v.draw()
+			case <-requestRefill: // It is not most efficient solution, it might cause huge amount of redraws
+				v.refill()
+			case line := <-requestStatusUpdate:
+				v.info.totalLines = line + 1
+				if v.focus == v {
+					v.info.draw()
 				}
+			case charChange := <-requestKeepCharsChange:
+				if v.keepChars+charChange >= 0 {
+					v.keepChars = v.keepChars + charChange
+				}
+				v.draw()
+			}
 		}
 	}
 

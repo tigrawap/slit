@@ -1,4 +1,4 @@
-package core
+package slit
 
 import (
 	"github.com/nsf/termbox-go"

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	flag "github.com/ogier/pflag"
-	"github.com/tigrawap/slit/core"
+	"github.com/tigrawap/slit"
 	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 )
@@ -39,7 +39,7 @@ func main() {
 	stdinStat, _ := os.Stdin.Stat()
 	stdoutStat, _ := os.Stdout.Stat()
 
-	var s *core.Slit
+	var s *slit.Slit
 	var err error
 
 	if isPipe(stdinStat) && flag.NArg() == 0 {
@@ -47,7 +47,7 @@ func main() {
 			outputToStdout(os.Stdin)
 			return
 		}
-		s, err = core.NewFromStdin()
+		s, err = slit.NewFromStdin()
 		exitOnErr(err)
 	} else {
 		if flag.NArg() != 1 {
@@ -63,7 +63,7 @@ func main() {
 			return
 		}
 
-		s, err = core.NewFromFilepath(path)
+		s, err = slit.NewFromFilepath(path)
 		exitOnErr(err)
 	}
 

@@ -14,7 +14,7 @@ Slit is runs in terminal mode, writing directly to the screen, without clutterin
 The best way is to get **Go** on your system and compile yourself. It's easier then it sounds:
 - download and install from https://golang.org/dl/  
 - make sure that you got `$GOPATH/bin` in your `PATH`.
-- `go get github.com/tigrawap/slit`
+- `go get github.com/tigrawap/slit/cmd/slit`
 - done!
 
 If you prefer pre-built binaries, head over to the releases page - https://github.com/tigrawap/slit/releases.
