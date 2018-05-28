@@ -30,7 +30,6 @@ type viewer struct {
 	search        []rune
 	buffer        viewBuffer
 	keepChars     int
-	filters       []*filters.Filter
 	ctx           context.Context
 	following     bool
 }
@@ -452,9 +451,6 @@ func (v *viewer) termGui() {
 		flock:          &v.fetcher.lock,
 		searchType:     filters.CaseSensitive,
 	}
-	for _, filter := range v.filters {
-		v.applyFilter(filter)
-	}
 	v.focus = v
 	v.buffer = viewBuffer{
 		fetcher: v.fetcher,
@@ -576,7 +572,7 @@ loop:
 			if v.buffer.pos != 0 || v.buffer.resetPos.Offset != 0 {
 				break loop
 			}
-			if len(v.fetcher.filters) != 0 {
+			if len(v.fetcher.filters) != 0 && !config.stdin {
 				break loop
 			}
 			v.buffer.lock.RUnlock()

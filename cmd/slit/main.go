@@ -77,15 +77,16 @@ func main() {
 
 	defer s.Shutdown()
 
+	if !alwaysTermMode && tryDirectOutputIfShort(s, ctx, waitForShortStdin) {
+		return
+	}
+
 	if filtersOpt != "" {
 		initFilters, err := filters.ParseFiltersOpt(filtersOpt)
 		exitOnErr(err)
 		s.SetFilters(initFilters)
 	}
 
-	if !alwaysTermMode && tryDirectOutputIfShort(s, ctx, waitForShortStdin) {
-		return
-	}
 	s.SetOutPath(outPath) // TODO: This is not really used right now, NewFromStdin uses config before it is set here
 	// Probably should pass config to all slit constructors, with sane defaults
 	s.SetFollow(follow)

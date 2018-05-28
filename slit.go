@@ -66,7 +66,7 @@ type Slit struct {
 	initialised    bool
 }
 
-// Set explicit stdin cache location
+// Returns input file, original or cache file when reading from stdin
 func (s *Slit) GetFile() *os.File { return s.file }
 
 // Set explicit stdin cache location
@@ -93,11 +93,16 @@ func (s *Slit) Display() {
 	if ! s.initialised {
 		s.Init()
 	}
+
+	s.file.Seek(0, io.SeekStart)
+	//s.fetcher = newFetcher(s.file, s.ctx)
+	s.fetcher.filters = config.initFilters
+	s.fetcher.seek(0)
+	s.initialised = true
 	v := &viewer{
 		fetcher:   s.fetcher,
 		ctx:       s.ctx,
 		keepChars: config.keepChars,
-		filters:   config.initFilters,
 	}
 	v.termGui()
 }
