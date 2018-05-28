@@ -18,6 +18,7 @@ import (
 	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/utils"
+	"github.com/nsf/termbox-go"
 )
 
 func init() {
@@ -56,12 +57,17 @@ func (c *Config) isStdinRead() bool {
 
 // Slit is a configured instance of the pager, ready to be displayed
 type Slit struct {
-	wg          sync.WaitGroup
-	ctx         context.Context
-	cancel      context.CancelFunc
-	file        *os.File
-	isCacheFile bool // if true, file will be removed on shutdown
+	wg             sync.WaitGroup
+	ctx            context.Context
+	cancel         context.CancelFunc
+	file           *os.File
+	isCacheFile    bool // if true, file will be removed on shutdown
+	fetcher        *Fetcher
+	initialised    bool
 }
+
+// Set explicit stdin cache location
+func (s *Slit) GetFile() *os.File { return s.file }
 
 // Set explicit stdin cache location
 func (s *Slit) SetOutPath(path string) { config.outPath = path }
@@ -76,9 +82,19 @@ func (s *Slit) SetKeepChars(i int) { config.keepChars = i }
 func (s *Slit) SetFilters(f []*filters.Filter) { config.initFilters = f }
 
 // Invoke the Slit UI
+func (s *Slit) Init() {
+	s.fetcher = newFetcher(s.file, s.ctx)
+	s.fetcher.filters = config.initFilters
+	s.initialised = true
+}
+
+// Invoke the Slit UI
 func (s *Slit) Display() {
+	if ! s.initialised {
+		s.Init()
+	}
 	v := &viewer{
-		fetcher:   newFetcher(s.file, s.ctx),
+		fetcher:   s.fetcher,
 		ctx:       s.ctx,
 		keepChars: config.keepChars,
 		filters:   config.initFilters,
@@ -128,7 +144,7 @@ func NewFromStream(ch chan string) (*Slit, error) {
 
 	s.wg.Add(1)
 	go func() {
-		for _ = range time.Tick(100 * time.Millisecond) {
+		for _ = range time.Tick(100*time.Millisecond) {
 			lock.Lock()
 			w.Flush()
 			lock.Unlock()
@@ -230,4 +246,47 @@ func mkCacheFile() (f *os.File, err error) {
 		f = utils.OpenRewrite(config.outPath)
 	}
 	return f, err
+}
+
+func (s *Slit) CanFitDisplay(ctx context.Context) bool {
+	s.Init()
+	termbox.Init()
+	w, h := termbox.Size()
+	termbox.Close()
+	localCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	parsedLineCount := 0
+	lines := s.fetcher.Get(localCtx, Pos{})
+FORLOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case line, isOpen := <-lines:
+			if ! isOpen {
+				if config.stdin && !config.isStdinRead(){
+					select {
+						case <- ctx.Done():
+							return false
+						case <- time.After(10 * time.Millisecond):
+							lines = s.fetcher.Get(localCtx, line.Pos)
+							continue FORLOOP
+					}
+				}
+				break FORLOOP
+			}
+			parsedLineCount += len(line.Str.Runes) / w
+			mod := len(line.Str.Runes) % w
+			if mod != 0 {
+				parsedLineCount += 1
+			}
+			if parsedLineCount > h {
+				return false
+			}
+		}
+	}
+	if parsedLineCount < h {
+		return true
+	}
+	return false
 }

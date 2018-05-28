@@ -9,6 +9,8 @@ import (
 	"github.com/tigrawap/slit"
 	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
+	"context"
+	"time"
 )
 
 const VERSION = "1.1.6"
@@ -22,12 +24,18 @@ var (
 
 func main() {
 
+	ctx := context.Background()
+
 	flag.StringVarP(&outPath, "output", "O", "", "Sets stdin cache location, if not set tmp file used, if set file preserved")
 	flag.BoolVar(&logging.Config.Enabled, "debug", false, "Enables debug messages, written to /tmp/slit.log")
 	flag.BoolVarP(&follow, "follow", "f", false, "Will follow file/stdin")
 	showVersion := false
+	alwaysTermMode := false
+	waitForShortStdin := 10000
 	flag.BoolVar(&showVersion, "version", false, "Print version")
+	flag.BoolVar(&alwaysTermMode, "always-term", false, "Always opens in term mode, even if output is short")
 	flag.IntVarP(&keepChars, "keep-chars", "K", 0, "Initial num of chars kept during horizontal scrolling")
+	flag.IntVar(&waitForShortStdin, "short-stdin-timeout", 10000, "Maximum duration(ms) to wait for delayed short stdin(won't delay long stdin)")
 	flag.StringVarP(&filtersOpt, "filters", "", "", "Filters file names or inline filters separated by semicolon")
 	flag.Parse()
 
@@ -67,18 +75,34 @@ func main() {
 		exitOnErr(err)
 	}
 
+	defer s.Shutdown()
+
 	if filtersOpt != "" {
 		initFilters, err := filters.ParseFiltersOpt(filtersOpt)
 		exitOnErr(err)
 		s.SetFilters(initFilters)
 	}
 
-	s.SetOutPath(outPath)
+	if !alwaysTermMode && tryDirectOutputIfShort(s, ctx, waitForShortStdin) {
+		return
+	}
+	s.SetOutPath(outPath) // TODO: This is not really used right now, NewFromStdin uses config before it is set here
+	// Probably should pass config to all slit constructors, with sane defaults
 	s.SetFollow(follow)
 	s.SetKeepChars(keepChars)
 
 	s.Display()
-	s.Shutdown()
+}
+
+func tryDirectOutputIfShort(s *slit.Slit, ctx context.Context, durationMs int) bool {
+	localCtx, _ := context.WithTimeout(ctx, time.Duration(durationMs)*time.Millisecond)
+	if s.CanFitDisplay(localCtx) {
+		file := s.GetFile()
+		file.Seek(0, io.SeekStart)
+		outputToStdout(file)
+		return true
+	}
+	return false
 }
 
 func exitOnErr(err error) {
