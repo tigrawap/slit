@@ -280,8 +280,13 @@ FORLOOP:
 				}
 				break FORLOOP
 			}
-			parsedLineCount += len(line.Str.Runes) / w
-			mod := len(line.Str.Runes) % w
+			lineLen := len(line.Str.Runes)
+			if lineLen > 0 {
+				parsedLineCount += lineLen / w
+			}else{
+				parsedLineCount++
+			}
+			mod := lineLen % w
 			if mod != 0 {
 				parsedLineCount += 1
 			}
