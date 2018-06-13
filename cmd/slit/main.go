@@ -5,15 +5,16 @@ import (
 	"io"
 	"os"
 
+	"context"
+	"time"
+
 	flag "github.com/ogier/pflag"
 	"github.com/tigrawap/slit"
 	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
-	"context"
-	"time"
 )
 
-const VERSION = "1.1.6"
+const VERSION = "1.2.0"
 
 var (
 	outPath    string
@@ -96,7 +97,8 @@ func main() {
 }
 
 func tryDirectOutputIfShort(s *slit.Slit, ctx context.Context, durationMs int) bool {
-	localCtx, _ := context.WithTimeout(ctx, time.Duration(durationMs)*time.Millisecond)
+	localCtx, cancel := context.WithTimeout(ctx, time.Duration(durationMs)*time.Millisecond)
+	defer cancel()
 	if s.CanFitDisplay(localCtx) {
 		file := s.GetFile()
 		file.Seek(0, io.SeekStart)

@@ -15,10 +15,10 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/nsf/termbox-go"
 	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 	"github.com/tigrawap/slit/utils"
-	"github.com/nsf/termbox-go"
 )
 
 func init() {
@@ -57,13 +57,13 @@ func (c *Config) isStdinRead() bool {
 
 // Slit is a configured instance of the pager, ready to be displayed
 type Slit struct {
-	wg             sync.WaitGroup
-	ctx            context.Context
-	cancel         context.CancelFunc
-	file           *os.File
-	isCacheFile    bool // if true, file will be removed on shutdown
-	fetcher        *Fetcher
-	initialised    bool
+	wg          sync.WaitGroup
+	ctx         context.Context
+	cancel      context.CancelFunc
+	file        *os.File
+	isCacheFile bool // if true, file will be removed on shutdown
+	fetcher     *Fetcher
+	initialised bool
 }
 
 // Returns input file, original or cache file when reading from stdin
@@ -90,7 +90,7 @@ func (s *Slit) Init() {
 
 // Invoke the Slit UI
 func (s *Slit) Display() {
-	if ! s.initialised {
+	if !s.initialised {
 		s.Init()
 	}
 
@@ -149,7 +149,7 @@ func NewFromStream(ch chan string) (*Slit, error) {
 
 	s.wg.Add(1)
 	go func() {
-		for _ = range time.Tick(100*time.Millisecond) {
+		for _ = range time.Tick(100 * time.Millisecond) {
 			lock.Lock()
 			w.Flush()
 			lock.Unlock()
@@ -268,14 +268,14 @@ FORLOOP:
 		case <-ctx.Done():
 			return false
 		case line, isOpen := <-lines:
-			if ! isOpen {
-				if config.stdin && !config.isStdinRead(){
+			if !isOpen {
+				if config.stdin && !config.isStdinRead() {
 					select {
-						case <- ctx.Done():
-							return false
-						case <- time.After(10 * time.Millisecond):
-							lines = s.fetcher.Get(localCtx, line.Pos)
-							continue FORLOOP
+					case <-ctx.Done():
+						return false
+					case <-time.After(10 * time.Millisecond):
+						lines = s.fetcher.Get(localCtx, line.Pos)
+						continue FORLOOP
 					}
 				}
 				break FORLOOP
@@ -283,7 +283,7 @@ FORLOOP:
 			lineLen := len(line.Str.Runes)
 			if lineLen > 0 {
 				parsedLineCount += lineLen / w
-			}else{
+			} else {
 				parsedLineCount++
 			}
 			mod := lineLen % w
