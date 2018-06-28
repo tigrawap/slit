@@ -338,9 +338,9 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case 'G':
 			v.navigateEnd()
 		case 'f':
-			v.navigate(+v.height)
+			v.navigatePageDown()
 		case 'b':
-			v.navigate(-v.height)
+			v.navigatePageUp()
 		case '/':
 			v.focus = &v.info
 			v.info.reset(ibModeSearch)
