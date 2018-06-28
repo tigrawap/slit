@@ -387,12 +387,10 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigateRight()
 		case termbox.KeyArrowLeft:
 			v.navigateLeft()
-		case termbox.KeyPgup:
-			v.navigate(-v.height)
-		case termbox.KeyPgdn:
-			v.navigate(+v.height)
-		case termbox.KeySpace:
-			v.navigate(+v.height)
+		case termbox.KeyCtrlU, termbox.KeyPgup:
+			v.navigatePageUp()
+		case termbox.KeyCtrlD, termbox.KeyPgdn, termbox.KeySpace:
+			v.navigatePageDown()
 		case termbox.KeyHome:
 			v.navigateStart()
 		case termbox.KeyEnd:
@@ -682,6 +680,12 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 		}
 	}
 	v.draw()
+}
+func (v *viewer) navigatePageUp() {
+	v.navigate(-v.height)
+}
+func (v *viewer) navigatePageDown() {
+	v.navigate(+v.height)
 }
 
 func reportSystemUsage() {
