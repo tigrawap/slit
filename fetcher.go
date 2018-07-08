@@ -24,6 +24,7 @@ type Fetcher struct {
 	lineReaderPos    int
 	filters          []*filters.Filter
 	filtersEnabled   bool
+	filtersLock      sync.RWMutex
 }
 
 const (
@@ -67,7 +68,10 @@ func (a offsetArr) Less(i, j int) bool { return a[i] < a[j] }
 // Line == -1 if Line is excluded
 func (f *Fetcher) filteredLine(l PosLine) Line {
 	str := ansi.NewAstring(l.b)
-	if len(f.filters) == 0 || !f.filtersEnabled {
+	f.filtersLock.Lock()
+	filtersLen := len(f.filters)
+	f.filtersLock.Unlock()
+	if filtersLen == 0 || !f.filtersEnabled {
 		return Line{str, l.Pos}
 	}
 	var action filters.FilterResult
