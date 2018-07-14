@@ -22,8 +22,10 @@ type Fetcher struct {
 	lineReader       *bufio.Reader
 	lineReaderOffset Offset
 	lineReaderPos    int
+	lineReaderLock   sync.RWMutex
 	filters          []*filters.Filter
 	filtersEnabled   bool
+	filtersLock      sync.RWMutex
 }
 
 const (
@@ -67,7 +69,10 @@ func (a offsetArr) Less(i, j int) bool { return a[i] < a[j] }
 // Line == -1 if Line is excluded
 func (f *Fetcher) filteredLine(l PosLine) Line {
 	str := ansi.NewAstring(l.b)
-	if len(f.filters) == 0 || !f.filtersEnabled {
+	f.filtersLock.Lock()
+	filtersLen := len(f.filters)
+	f.filtersLock.Unlock()
+	if filtersLen == 0 || !f.filtersEnabled {
 		return Line{str, l.Pos}
 	}
 	var action filters.FilterResult
@@ -120,6 +125,8 @@ func (f *Fetcher) seek(offset Offset) {
 	if offset < 0 {
 		panic("Seeking out of bounds")
 	}
+	f.lineReaderLock.Lock()
+	defer f.lineReaderLock.Unlock()
 	if f.lineReaderOffset == offset && f.lineReader != nil {
 		return // We are already there
 	}
@@ -130,6 +137,8 @@ func (f *Fetcher) seek(offset Offset) {
 
 //reads and returns one Line, position and error, which can only be io.EOF, otherwise panics
 func (f *Fetcher) readline() ([]byte, Offset, error) {
+	f.lineReaderLock.Lock()
+	defer f.lineReaderLock.Unlock()
 	str, err := f.lineReader.ReadBytes('\n')
 	startingOffset := f.lineReaderOffset
 	if len(str) > 0 {
