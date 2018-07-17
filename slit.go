@@ -259,9 +259,12 @@ func (s *Slit) CanFitDisplay(ctx context.Context) bool {
 	w, h := termbox.Size()
 	termbox.Close()
 	localCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	parsedLineCount := 0
 	lines := s.fetcher.Get(localCtx, Pos{})
+	defer func(){
+		for range lines {} // Draining channel to avoid races on fetcher
+	}()
+	defer cancel()
 FORLOOP:
 	for {
 		select {
