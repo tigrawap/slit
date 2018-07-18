@@ -96,7 +96,9 @@ func (s *Slit) Display() {
 
 	s.file.Seek(0, io.SeekStart)
 	//s.fetcher = newFetcher(s.file, s.ctx)
+	s.fetcher.lock.Lock()
 	s.fetcher.filters = config.initFilters
+	s.fetcher.lock.Unlock()
 	s.fetcher.seek(0)
 	s.initialised = true
 	v := &viewer{
