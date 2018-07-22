@@ -263,8 +263,9 @@ func (s *Slit) CanFitDisplay(ctx context.Context) bool {
 	localCtx, cancel := context.WithCancel(ctx)
 	parsedLineCount := 0
 	lines := s.fetcher.Get(localCtx, Pos{})
-	defer func(){
-		for range lines {} // Draining channel to avoid races on fetcher
+	defer func() {
+		for range lines {
+		} // Draining channel to avoid races on fetcher
 	}()
 	defer cancel()
 FORLOOP:

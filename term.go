@@ -22,7 +22,7 @@ type viewer struct {
 	hOffset       int
 	width         int
 	height        int
-	sizeLock	  sync.Mutex
+	sizeLock      sync.Mutex
 	wrap          bool
 	fetcher       *Fetcher
 	focus         Focusing
@@ -563,7 +563,7 @@ func (v *viewer) refreshIfEmpty(ctx context.Context) {
 		locked = true
 	}
 	unlock := func() {
-		if ! locked {
+		if !locked {
 			return
 		}
 		v.buffer.lock.RUnlock()
