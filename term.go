@@ -22,6 +22,7 @@ type viewer struct {
 	hOffset       int
 	width         int
 	height        int
+	sizeLock	  sync.Mutex
 	wrap          bool
 	fetcher       *Fetcher
 	focus         Focusing
@@ -405,8 +406,10 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 }
 
 func (v *viewer) resize(width, height int) {
+	v.sizeLock.Lock()
 	v.width, v.height = width, height
 	v.height-- // Saving one Line for infobar
+	v.sizeLock.Unlock()
 	v.info.resize(v.width, v.height)
 	v.buffer.window = v.height
 	v.draw()
@@ -553,6 +556,20 @@ func (v *viewer) refreshIfEmpty(ctx context.Context) {
 	}
 	delay := 3 * time.Millisecond
 	locked := false
+
+	lock := func() {
+		v.buffer.lock.RLock()
+		v.sizeLock.Lock()
+		locked = true
+	}
+	unlock := func() {
+		if ! locked {
+			return
+		}
+		v.buffer.lock.RUnlock()
+		v.sizeLock.Unlock()
+		locked = false
+	}
 loop:
 	for {
 		select {
@@ -562,8 +579,7 @@ loop:
 			if config.follow {
 				break loop
 			}
-			v.buffer.lock.RLock()
-			locked = true
+			lock()
 			if len(v.buffer.buffer) >= v.height {
 				break loop
 			}
@@ -573,8 +589,7 @@ loop:
 			if len(v.fetcher.filters) != 0 && !config.stdin {
 				break loop
 			}
-			v.buffer.lock.RUnlock()
-			locked = false
+			unlock()
 			if config.stdin && config.isStdinRead() {
 				refresh()
 				break loop
@@ -583,9 +598,7 @@ loop:
 			refresh()
 		}
 	}
-	if locked {
-		v.buffer.lock.RUnlock()
-	}
+	unlock()
 }
 
 func (v *viewer) updateLastLine(ctx context.Context) {
