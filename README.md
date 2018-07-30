@@ -37,8 +37,10 @@ Keep in mind however they might be some commits behind master branch.
 - `C` - Stands for "Context", switches off/on all filters, helpful to get context of current line (which is the first line, at the top of the screen)
 
 ##### Navigation
-- `f`, `PageDown`, `Space` - Page Down
-- `b`, `PageUp` - Page Up
+- `f`, `PageDown`, `Space`, `CTRL + F` - Page Down
+- `CTRL + D` - Half page down
+- `b`, `PageUp`, `CTRL + B` - Page Up
+- `CTRL + U` - Half page up
 - `g`, `Home` - Go to first line
 - `G`, `End` - Go to last line
 - `Arrow down`, `j` - Move one line down
@@ -50,7 +52,7 @@ Keep in mind however they might be some commits behind master branch.
 - `K` - Keep N first characters(usually containing timestamp) when navigating horizontally  
     Up/Down arrows during K-mode will adjust N of kept chars 
 - `W` - Wrap/Unwrap lines
-- `CTRL+S` - Save filtered version to file (will prompt for filepath)
+- `CTRL + S` - Save filtered version to file (will prompt for filepath)
 - `q` - quit
 
 ### Search Modes
