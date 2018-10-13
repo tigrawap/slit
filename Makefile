@@ -23,23 +23,26 @@ makedir:
 	@if [ ! -d $(PKGPATH) ] ; then mkdir -p $(PKGPATH) ; fi
 	@echo ok
 
+# update vendored code: dep ensure -update [-v -dry-run]
 get_deps:
 	@echo -n "get dependencies... "
-	@$(GOGET) github.com/ogier/pflag
-	@$(GOGET) github.com/nsf/termbox-go
-	@$(GOGET) code.cloudfoundry.org/bytefmt
+	@$(GOGET) -u github.com/golang/dep/cmd/dep
 	@echo ok
 
 build:
 	@echo -n "run build... "
-	@$(GOBUILD) -o $(BINPATH)/$(EXENAME) $(CMDSOURCES)
+	@$(GOBUILD) -o $(BINPATH)/$(EXENAME) -ldflags="-w -s" $(CMDSOURCES)
 	@echo ok
 
 test:
-	@echo -n "Validating with gofmt"
-	@if [ ! -z "$(shell gofmt -l .)" ] ; then echo "gofmt had something to say:" && gofmt -l . && exit 1; fi
-	@echo -n "Validating with go vet"
-	@go vet ./...
+	@echo -n "Validating with go fmt..."
+	@go fmt $$(go list ./... | grep -v /vendor/)
+	@echo ok
+	@echo -n "Validating with go vet..."
+	@go vet $$(go list ./... | grep -v /vendor/)
+	@echo ok
+	@echo -n "Validating with dep check..."
+	@dep check
 	@echo ok
 
 clean:
