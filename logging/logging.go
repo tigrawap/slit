@@ -3,6 +3,7 @@ package logging
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -12,17 +13,21 @@ var Config struct {
 }
 
 func init() {
-	Config.LogPath = "/tmp/debug.log"
+	Config.LogPath = filepath.Join(os.TempDir(), "debug.log")
 }
 
 func Debug(l ...interface{}) {
 	if !Config.Enabled {
 		return
 	}
-	f, _ := os.OpenFile(Config.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile(Config.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	defer f.Close()
 	log.SetOutput(f)
-	log.Println(l)
+	log.Println(l...)
 }
 
 func Timeit(l ...interface{}) func() {
