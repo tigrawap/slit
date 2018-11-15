@@ -81,6 +81,9 @@ func (s *Slit) SetKeepChars(i int) { config.keepChars = i }
 // Set initial filters
 func (s *Slit) SetFilters(f []*filters.Filter) { config.initFilters = f }
 
+// Get filters
+func (s *Slit) GetFilters() []*filters.Filter { return config.initFilters }
+
 // Invoke the Slit UI
 func (s *Slit) Init() {
 	s.fetcher = newFetcher(s.file, s.ctx)
@@ -255,13 +258,14 @@ func mkCacheFile() (f *os.File, err error) {
 	return f, err
 }
 
-func (s *Slit) CanFitDisplay(ctx context.Context) bool {
+func (s *Slit) CanFitDisplay(ctx context.Context) (bool, []Line) {
 	s.Init()
 	termbox.Init()
 	w, h := termbox.Size()
 	termbox.Close()
 	localCtx, cancel := context.WithCancel(ctx)
 	parsedLineCount := 0
+	linesOut := make([]Line, 0, h)
 	lines := s.fetcher.Get(localCtx, Pos{})
 	defer func() {
 		for range lines {
@@ -272,13 +276,13 @@ FORLOOP:
 	for {
 		select {
 		case <-ctx.Done():
-			return false
+			return false, linesOut
 		case line, isOpen := <-lines:
 			if !isOpen {
 				if config.stdin && !config.isStdinRead() {
 					select {
 					case <-ctx.Done():
-						return false
+						return false, linesOut
 					case <-time.After(10 * time.Millisecond):
 						lines = s.fetcher.Get(localCtx, line.Pos)
 						continue FORLOOP
@@ -286,6 +290,7 @@ FORLOOP:
 				}
 				break FORLOOP
 			}
+			linesOut = append(linesOut, line)
 			lineLen := len(line.Str.Runes)
 			if lineLen > 0 {
 				parsedLineCount += lineLen / w
@@ -297,12 +302,9 @@ FORLOOP:
 				parsedLineCount += 1
 			}
 			if parsedLineCount > h {
-				return false
+				return false, linesOut
 			}
 		}
 	}
-	if parsedLineCount < h {
-		return true
-	}
-	return false
+	return parsedLineCount < h, linesOut
 }

@@ -78,14 +78,14 @@ func main() {
 
 	defer s.Shutdown()
 
-	if !alwaysTermMode && tryDirectOutputIfShort(s, ctx, waitForShortStdin) {
-		return
-	}
-
 	if filtersOpt != "" {
 		initFilters, err := filters.ParseFiltersOpt(filtersOpt)
 		exitOnErr(err)
 		s.SetFilters(initFilters)
+	}
+
+	if !alwaysTermMode && tryDirectOutputIfShort(s, ctx, waitForShortStdin) {
+		return
 	}
 
 	s.SetOutPath(outPath) // TODO: This is not really used right now, NewFromStdin uses config before it is set here
@@ -99,10 +99,16 @@ func main() {
 func tryDirectOutputIfShort(s *slit.Slit, ctx context.Context, durationMs int) bool {
 	localCtx, cancel := context.WithTimeout(ctx, time.Duration(durationMs)*time.Millisecond)
 	defer cancel()
-	if s.CanFitDisplay(localCtx) {
-		file := s.GetFile()
-		file.Seek(0, io.SeekStart)
-		outputToStdout(file)
+	if ok, lines := s.CanFitDisplay(localCtx); ok {
+		if len(s.GetFilters()) > 0 {
+			for _, line := range lines {
+				fmt.Fprintln(os.Stdout, string(line.Str.Runes))
+			}
+		} else {
+			file := s.GetFile()
+			file.Seek(0, io.SeekStart)
+			outputToStdout(file)
+		}
 		return true
 	}
 	return false
