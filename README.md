@@ -64,12 +64,16 @@ To switch between modes press `CTRL + /` in search/filter input.
 **Note**: For case-insensitive search in **RegEx** use `(?i)cOnDiTiOn`  
 **TODO:** This will be replaced with separate toggle in the future  
 
-### Command line arguments  
-- `--follow -f` Follow file/stdin. All filters are applied to new data.  
+### Command line arguments
+- `--always-term` - Always opens in term mode, even if output is short
+- `--debug` - Enables debug messages, written to /tmp/slit.log
+- `--filters=nginx_php_errors` - Specifies path to the file containing predefined filters or inline filters separated by semicolon *(see "Filters" section)*
+- `--follow -f` - Follow file/stdin. All filters are applied to new data
 When navigating up from the end, following will be stopped and resumed on navigating to the end(shift+g) or just by scrolling down till the end
-- `--keep-chars=10`,`-K 10` - Predefines number of kept chars *(see K in key bindings)*
-- `--filters=nginx_php_errors` Specifies path to the file containing predefined filters or inline filters separated by semicolon *(see "Filters" section)*
-- `--version` Displays version   
+- `--keep-chars=10`, `-K 10` - Predefines number of kept chars *(see K in key bindings)*
+- `--output=/output/path`, `-O /output/path` - Sets stdin cache location, if not set tmp file used, if set file preserved
+- `--short-stdin-timeout=10000` - Sets maximum duration (ms) to wait for delayed short stdin
+- `--version` - Displays version
 
 ### Filters
 
