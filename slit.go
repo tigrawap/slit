@@ -260,6 +260,9 @@ func (s *Slit) CanFitDisplay(ctx context.Context) bool {
 	termbox.Init()
 	w, h := termbox.Size()
 	termbox.Close()
+	if w == 0 || h == 0 {
+		return false
+	}
 	localCtx, cancel := context.WithCancel(ctx)
 	parsedLineCount := 0
 	lines := s.fetcher.Get(localCtx, Pos{})
