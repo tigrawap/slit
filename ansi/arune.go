@@ -100,7 +100,7 @@ mainLoop:
 				continue
 				// Control sequence
 			}
-			if rr[i+1] == 40 || rr[i+1] == 41 { // [27 {40,41}] is charset shift sequence, ignore
+			if i != max -1 && (rr[i+1] == 40 || rr[i+1] == 41) { // [27 {40,41}] is charset shift sequence, ignore
 				i += 2 // all shift sequences are two bytes
 				continue
 			}
