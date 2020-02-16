@@ -282,6 +282,8 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 			v.onKeyDown()
 		case termbox.KeyCtrlSlash:
 			v.switchSearchType()
+		case termbox.KeyCtrlR:
+			v.switchSearchType()
 		case termbox.KeyBackspace, termbox.KeyBackspace2:
 			err := v.moveCursor(-1)
 			if err == nil {
