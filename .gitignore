@@ -1,4 +1,8 @@
 .idea
 .DS_Store
 *.log
-
+*.sw[pno]
+/bin
+/pkg
+/src
+output.sh

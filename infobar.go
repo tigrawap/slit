@@ -1,10 +1,18 @@
-package main
+package slit
 
 import (
-	"github.com/nsf/termbox-go"
+	"bufio"
 	"errors"
-	"github.com/tigrawap/slit/runes"
 	"fmt"
+	"github.com/nsf/termbox-go"
+	"github.com/tigrawap/slit/filters"
+	"github.com/tigrawap/slit/logging"
+	"github.com/tigrawap/slit/runes"
+	"github.com/tigrawap/slit/utils"
+	"os"
+	"path/filepath"
+	"strconv"
+	"sync"
 )
 
 const promtLength = 1
@@ -12,12 +20,15 @@ const promtLength = 1
 type infobarMode uint
 
 const (
-	ibModeStatus     infobarMode = iota
+	ibModeStatus infobarMode = iota
 	ibModeSearch
 	ibModeBackSearch
 	ibModeFilter
 	ibModeAppend
 	ibModeExclude
+	ibModeSave
+	ibModeMessage
+	ibModeKeepCharacters
 )
 
 type infobar struct {
@@ -26,18 +37,38 @@ type infobar struct {
 	cx             int //cursor position
 	editBuffer     []rune
 	mode           infobarMode
-	totalLines     *int
-	currentLine    *int
+	flock          *sync.RWMutex
+	totalLines     LineNo
+	currentLine    *Pos
 	filtersEnabled *bool
+	keepChars      *int
+	history        ibHistory
+	searchType     filters.SearchType
+	message        ibMessage
+}
+
+type ibMessage struct {
+	str   string
+	color termbox.Attribute
+}
+
+const ibHistorySize = 1000
+
+type ibHistory struct {
+	buffer       [][]rune
+	wlock        sync.RWMutex
+	pos          int    // position from the end of file. New records appended, so 0 is always "before" last record with ==1 being last record
+	currentInput []rune // when navigating from zero position will hold input use entered and displayed once back to zero Line
+	loaded       bool
 }
 
 func (v *infobar) moveCursor(direction int) error {
 	target := v.cx + direction
 	if target < 0 {
-		return errors.New("Reached beginning of the line")
+		return errors.New("Reached beginning of the Line")
 	}
 	if target > len(v.editBuffer) {
-		return errors.New("Reached end of the line")
+		return errors.New("Reached end of the Line")
 	}
 	v.moveCursorToPosition(target)
 	return nil
@@ -50,20 +81,28 @@ func (v *infobar) reset(mode infobarMode) {
 	v.draw()
 }
 
-func (v *infobar) statusBar() {
+func (v *infobar) clear() {
 	for i := 0; i < v.width; i++ {
-		termbox.SetCell(i, v.y, ' ', termbox.ColorBlack, termbox.ColorBlack)
+		termbox.SetCell(i, v.y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
-	str := []rune(fmt.Sprintf("%d/%d", *v.currentLine+1, *v.totalLines))
+}
+
+func (v *infobar) statusBar() {
+	v.clear()
+	v.message = ibMessage{}
+	v.flock.Lock()
+	defer v.flock.Unlock()
+	str := []rune(fmt.Sprintf("%s/%d", *v.currentLine, v.totalLines))
 	for i := 0; i < len(str); i++ {
-		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorBlack)
+		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
 	}
 	if !*v.filtersEnabled {
 		str := []rune("[-FILTERS]")
 		for i := 0; i < len(str) && i+1 < v.width; i++ {
-			termbox.SetCell(i+1, v.y, str[i], termbox.ColorMagenta, termbox.ColorBlack)
+			termbox.SetCell(i+1, v.y, str[i], termbox.ColorMagenta, termbox.ColorDefault)
 		}
 	}
+	termbox.Flush()
 }
 
 func (v *infobar) showSearch() {
@@ -74,25 +113,58 @@ func (v *infobar) showSearch() {
 func (v *infobar) draw() {
 	switch v.mode {
 	case ibModeBackSearch:
-		termbox.SetCell(0, v.y, '?', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '?', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeSearch:
-		termbox.SetCell(0, v.y, '/', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '/', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeFilter:
-		termbox.SetCell(0, v.y, '&', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '&', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeExclude:
-		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorDefault)
+		v.showSearch()
+	case ibModeSave:
+		termbox.SetCell(0, v.y, '>', termbox.ColorMagenta, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeAppend:
-		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorBlack)
+		termbox.SetCell(0, v.y, '+', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
+	case ibModeKeepCharacters:
+		termbox.SetCell(0, v.y, 'K', termbox.ColorGreen, termbox.ColorDefault)
+		v.editBuffer = []rune(strconv.Itoa(*v.keepChars))
+		v.showSearch()
+		v.moveCursorToPosition(len(v.editBuffer))
 	case ibModeStatus:
 		v.statusBar()
+	case ibModeMessage:
+		v.showMessage()
 	default:
 		panic("Not implemented")
 	}
+}
+
+func (v *infobar) setInput(str string) {
+	v.editBuffer = []rune(str)
+	v.showSearch()
+	v.moveCursorToPosition(len(v.editBuffer))
+}
+
+func (v *infobar) setMessage(message ibMessage) {
+	logging.Debug("Setting message", message)
+	v.message = message
+	v.reset(ibModeMessage)
+}
+
+func (v *infobar) showMessage() {
+	v.clear()
+	logging.Debug("Showing message", v.message)
+	str := []rune(v.message.str)
+	for i := 0; i < len(str) && i+1 < v.width; i++ {
+		logging.Debug("Adding char", str[i])
+		termbox.SetCell(i+1, v.y, str[i], v.message.color, termbox.ColorDefault)
+	}
+	termbox.Flush()
 }
 
 func (v *infobar) navigateWord(forward bool) {
@@ -114,7 +186,7 @@ func (v *infobar) findWord(forward bool) (pos int) {
 		if v.editBuffer[i] == ' ' {
 			pos = i
 			if !forward {
-				pos += 1
+				pos++
 			}
 			break
 		}
@@ -145,12 +217,16 @@ func (v *infobar) moveCursorToPosition(pos int) {
 	termbox.Flush()
 }
 
+func (v *infobar) moveCursorToEnd() {
+	v.moveCursorToPosition(len(v.editBuffer))
+}
+
 func (v *infobar) requestSearch() {
 	searchString := append([]rune(nil), v.editBuffer...) // Buffer may be modified by concurrent reset
 	searchMode := v.mode
 	go func() {
 		go func() {
-			requestSearch <- searchRequest{searchString, searchMode}
+			requestSearch <- infobarRequest{searchString, searchMode}
 		}()
 		termbox.Interrupt()
 	}()
@@ -173,6 +249,7 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 	} else {
 		switch ev.Key {
 		case termbox.KeyEsc:
+			logging.Debug("processing esc key")
 			switch getEscKey(ev) {
 			case ALT_LEFT_ARROW:
 				v.navigateWord(false)
@@ -187,6 +264,7 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 				return ACTION_RESET_FOCUS
 			}
 		case termbox.KeyEnter:
+			v.addToHistory()
 			v.requestSearch()
 			v.reset(ibModeStatus)
 			return ACTION_RESET_FOCUS
@@ -194,6 +272,12 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 			v.moveCursor(-1)
 		case termbox.KeyArrowRight:
 			v.moveCursor(+1)
+		case termbox.KeyArrowUp:
+			v.onKeyUp()
+		case termbox.KeyArrowDown:
+			v.onKeyDown()
+		case termbox.KeyCtrlSlash:
+			v.switchSearchType()
 		case termbox.KeyBackspace, termbox.KeyBackspace2:
 			err := v.moveCursor(-1)
 			if err == nil {
@@ -204,18 +288,185 @@ func (v *infobar) processKey(ev termbox.Event) (a action) {
 	}
 	return
 }
+func (v *infobar) switchSearchType() {
+	switch v.mode {
+	case ibModeExclude,
+		ibModeAppend,
+		ibModeSearch,
+		ibModeBackSearch,
+		ibModeFilter:
+		st := v.searchType
+		nextID := st.ID + 1
+		if _, ok := filters.SearchTypeMap[nextID]; !ok {
+			nextID = 0
+		}
+		nextSt := filters.SearchTypeMap[nextID]
+		v.searchType = nextSt
+		v.draw()
+	}
+}
 
-func (v *infobar) setCell(x, y int, ch rune, fg, bg termbox.Attribute) {
+func (history *ibHistory) load() {
+	if history.loaded {
+		return
+	}
+	history.loaded = true
+	f, err := os.Open(config.historyPath)
+	if os.IsNotExist(err) {
+		return
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		history.buffer = append(history.buffer, []rune(scanner.Text()))
+	}
+}
+
+func (v *infobar) addToHistory() {
+	switch v.mode {
+	case ibModeKeepCharacters, ibModeSave:
+		return
+	default:
+		v.history.add(v.editBuffer)
+	}
+}
+
+func (history *ibHistory) add(str []rune) {
+	if len(str) == 0 {
+		return // no need to save empty strings
+	}
+	history.load()
+	data := make([]rune, len(str))
+	copy(data, str)
+	history.wlock.Lock()
+	history.buffer = append(history.buffer, data)
+	history.pos = 0
+	history.wlock.Unlock()
+	go history.save(str)
+}
+
+func (history *ibHistory) save(str []rune) {
+	history.wlock.Lock()
+	defer history.wlock.Unlock()
+	os.MkdirAll(filepath.Dir(config.historyPath), os.ModePerm)
+	f, err := os.OpenFile(config.historyPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Could not open history file: %s", err))
+		return
+	}
+	defer f.Close()
+	f.Write([]byte(string(str) + "\n"))
+	logging.Debug("len, size", len(history.buffer), ibHistorySize)
+	if len(history.buffer) >= ibHistorySize {
+		history.trim()
+	}
+}
+
+func (history *ibHistory) trim() {
+	tmpPath := config.historyPath + "_tmp"
+	tmpFile := utils.OpenRewrite(tmpPath)
+	writer := bufio.NewWriter(tmpFile)
+	keptHistory := history.buffer[len(history.buffer)-ibHistorySize/100*80:]
+	for _, str := range keptHistory {
+		writer.WriteString(string(str) + "\n")
+	}
+
+	if err := writer.Flush(); err != nil {
+		logging.Debug("Could not write temporary history file")
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		logging.Debug("Could not close temporary history file")
+		return
+	}
+	history.buffer = keptHistory
+	os.Rename(tmpPath, config.historyPath)
+}
+
+func (v *infobar) onKeyUp() {
+	switch v.mode {
+	case ibModeKeepCharacters:
+		v.changeKeepChars(+1)
+	default:
+		v.navigateHistory(+1)
+	}
+}
+
+func (v *infobar) onKeyDown() {
+	switch v.mode {
+	case ibModeKeepCharacters:
+		v.changeKeepChars(-1)
+	default:
+		v.navigateHistory(-1)
+	}
+}
+
+func (v *infobar) navigateHistory(i int) {
+	v.history.load()
+	target := v.history.pos + i
+	if len(v.history.buffer) == 0 {
+		target = 0
+	}
+	if target > len(v.history.buffer) {
+		target = len(v.history.buffer)
+	}
+	if target < 0 {
+		target = 0
+	}
+	onPosChange := func() {
+		v.moveCursorToEnd()
+		v.syncSearchString()
+	}
+	if target == 0 {
+		if v.history.pos != 0 {
+			v.history.pos = target
+			v.editBuffer = v.history.currentInput
+			onPosChange()
+		}
+		return // Does not matter where we are going, but nothing to do here.
+	}
+	if v.history.pos == 0 { // Moved out from zero-search to existing search string
+		v.history.currentInput = v.editBuffer
+	}
+	v.history.pos = target
+	targetString := v.history.buffer[len(v.history.buffer)-target]
+	v.editBuffer = make([]rune, len(targetString))
+	copy(v.editBuffer, targetString)
+	onPosChange()
+}
+
+func (v *infobar) setPromptCell(x, y int, ch rune, fg, bg termbox.Attribute) {
 	termbox.SetCell(x+promtLength, v.y, ch, fg, bg)
 }
 
 func (v *infobar) syncSearchString() {
+	// TODO: Does not handle well very narrow screen
+	// TODO: All setCelling here need to be moved to some nicer wrapper funcs
+	var color termbox.Attribute
+	switch v.mode {
+	case ibModeKeepCharacters:
+		color = termbox.ColorYellow
+	default:
+		color = v.searchType.Color
+	}
 	for i := 0; i < v.width-promtLength; i++ {
 		ch := ' '
 		if i < len(v.editBuffer) {
 			ch = v.editBuffer[i]
 		}
-		v.setCell(i, v.y, ch, termbox.ColorYellow, termbox.ColorBlack)
+		v.setPromptCell(i, v.y, ch, color, termbox.ColorDefault)
+	}
+	runeName := []rune(v.searchType.Name)
+	for i := v.width - len(runeName); i < v.width && i > promtLength; i++ {
+		c := i + len(runeName) - v.width
+		termbox.SetCell(i, v.y, runeName[c], v.searchType.Color, termbox.ColorDefault)
 	}
 	termbox.Flush()
+}
+
+func (v *infobar) changeKeepChars(direction int) {
+	go func() {
+		go termbox.Interrupt()
+		requestKeepCharsChange <- direction
+	}()
 }

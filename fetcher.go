@@ -1,137 +1,171 @@
-package main
+package slit
 
 import (
-	"github.com/tigrawap/slit/ansi"
+	"bufio"
 	"context"
+	"fmt"
+	"github.com/tigrawap/slit/ansi"
+	"github.com/tigrawap/slit/filters"
+	"github.com/tigrawap/slit/logging"
 	"io"
 	"os"
-	"bufio"
+	"sort"
 	"sync"
-	"github.com/tigrawap/slit/logging"
-	"github.com/tigrawap/slit/runes"
+	"time"
 )
 
-type fetcher struct {
-	lock           sync.Mutex
-	lineMap        map[int]int // caches offset of every line
-	reader         io.ReadSeeker
-	lineReader     *bufio.Reader
-	lineReaderPos  int
-	totalLines     int //Total lines currently fetched
-	filters        []filter
-	filtersEnabled bool
+type Fetcher struct {
+	mLock            sync.RWMutex
+	lineMap          map[Offset]LineNo // caches Offset of some lines, meanwhile only last one, when available
+	reader           *os.File
+	lock             sync.RWMutex
+	lineReader       *bufio.Reader
+	lineReaderOffset Offset
+	lineReaderPos    int
+	filters          []*filters.Filter
+	filtersEnabled   bool
 }
 
-// Pos == -1 if line is excluded
-func (f *fetcher) filteredLine(l posLine) (line) {
+const (
+	POS_UNKNOWN      = -2
+	POS_FILTERED_OUT = -1
+)
+
+type Offset int64
+type LineNo int64
+
+type Pos struct {
+	Line   LineNo
+	Offset Offset
+}
+
+func (l Pos) String() string {
+	if l.Line == POS_UNKNOWN {
+		return fmt.Sprintf("b%d", l.Offset)
+	}
+	return fmt.Sprintf("%d", l.Line+1)
+}
+
+var POS_NOT_FOUND = Pos{-1, -1}
+
+type PosLine struct {
+	b []byte
+	Pos
+}
+
+type Line struct {
+	Str ansi.Astring
+	Pos
+}
+
+type offsetArr []Offset
+
+func (a offsetArr) Len() int           { return len(a) }
+func (a offsetArr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a offsetArr) Less(i, j int) bool { return a[i] < a[j] }
+
+// Line == -1 if Line is excluded
+func (f *Fetcher) filteredLine(l PosLine) Line {
 	str := ansi.NewAstring(l.b)
 	if len(f.filters) == 0 || !f.filtersEnabled {
-		return line{str, l.pos}
+		return Line{str, l.Pos}
 	}
-	var action filterAction
+	var action filters.FilterResult
 	for _, filter := range f.filters {
-		action = filter.takeAction(str.Runes, action)
+		action = filter.TakeAction(str.Runes, action)
 	}
 	switch action {
-	case filterExclude:
-		return line{Pos: -1}
+	case filters.FilterExcluded:
+		return Line{Pos: Pos{Line: POS_FILTERED_OUT, Offset: l.Pos.Offset}}
 	default:
-		return line{str, l.pos}
+		return Line{str, l.Pos}
 	}
 
 }
 
-func newFetcher(reader io.ReadSeeker) *fetcher {
-	return &fetcher{
+func newFetcher(reader *os.File, ctx context.Context) *Fetcher {
+	f := &Fetcher{
 		reader:         reader,
-		lineMap:        map[int]int{0: 0},
+		lineMap:        map[Offset]LineNo{0: 0},
 		lineReader:     bufio.NewReaderSize(reader, 64*1024),
 		filtersEnabled: true,
 	}
+	go f.gcMap(ctx)
+	return f
 }
 
-type line struct {
-	Str ansi.Astring
-	Pos int
-}
-
-//seeks to line
-func (f *fetcher) seek(to int) {
-	if to < 0 {
-		to = 0
+// returns position of next line starting from offset
+// If line starts on offset - will return same value as in function argument
+// Initially will seek to offset -1 byte, to see if given offset actually is position where line starts
+func (f *Fetcher) findLine(offset Offset) (Offset, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	if offset <= 0 {
+		return 0, nil
 	}
-	seekTo := to
-	logging.Debug("Seeking to line ", seekTo)
-	fpos, ok := f.lineMap[seekTo]
-	if !ok {
-		if f.totalLines-1 >= seekTo {
-			if f.totalLines != 0 {
-				fpos = f.lineMap[f.totalLines-1] // Will search from known end
-				seekTo = f.totalLines - 1
-			} else {
-				fpos = 0
-				seekTo = 0 // Will search from the beginning...it's a very first call
-			}
+	seekTo := offset - 1
+	f.seek(seekTo)
+	_, _, err := f.readline()
+	if err != nil {
+		if err == io.EOF {
+			return POS_UNKNOWN, err
 		}
+		panic(fmt.Sprintf("Unhandled error during findLine: %s", err))
 	}
 
-	if f.lineReaderPos == seekTo && f.lineReader != nil {
+	return f.lineReaderOffset, nil
+}
+
+func (f *Fetcher) seek(offset Offset) {
+	if offset < 0 {
+		panic("Seeking out of bounds")
+	}
+	if f.lineReaderOffset == offset && f.lineReader != nil {
 		return // We are already there
 	}
-
-	f.reader.Seek(int64(fpos), os.SEEK_SET)
+	f.reader.Seek(int64(offset), io.SeekStart)
 	f.lineReader = bufio.NewReaderSize(f.reader, 64*1024)
-	f.lineReaderPos = seekTo
-	if seekTo == to {
-		return
-	}
-	for {
-		_, pos, err := f.readline()
-		if pos == seekTo {
-			break
-		}
-		if err == io.EOF {
-			panic("Seeking out of bounds")
-		}
-	}
-	return
+	f.lineReaderOffset = offset
 }
 
-//reads and returns one line, position and error, which can only be io.EOF
-func (f *fetcher) readline() ([]byte, int, error) {
+//reads and returns one Line, position and error, which can only be io.EOF, otherwise panics
+func (f *Fetcher) readline() ([]byte, Offset, error) {
 	str, err := f.lineReader.ReadBytes('\n')
-	pos := f.lineReaderPos
-	if err == nil {
-		f.lineReaderPos += 1
-		if _, ok := f.lineMap[f.lineReaderPos]; !ok {
-			f.lineMap[f.lineReaderPos] = f.lineMap[f.lineReaderPos-1] + len(str)
-			f.totalLines += 1
+	startingOffset := f.lineReaderOffset
+	if len(str) > 0 {
+		if err == io.EOF && config.stdin && !config.isStdinRead() {
+			// Bad idea to remember position when we are not done reading current line
+			f.lineReader = nil
+			f.lineReaderPos = 0
+		} else if err == nil {
+			f.lineReaderOffset += Offset(len(str))
 		}
-		return str[:len(str)-1], pos, err //TODO: Handle \r for windows logs?
 	}
-	if err == io.EOF {
-		return str, pos, err
+	if err == nil {
+		return str[:len(str)-1], startingOffset, err //TODO: Handle \r for windows logs?
+	} else if err == io.EOF {
+		return str, startingOffset, err
 	} else {
 		panic(err)
 	}
 }
 
-// Returns 2 channels: for consuming posLines and returning of built line struct
+// Returns 2 channels: for consuming posLines and returning of built Line struct
 // lines guranteed to return in received order with filters applied
-func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line) {
+func (f *Fetcher) lineBuilder(ctx context.Context) (chan<- PosLine, <-chan Line) {
 	bufSize := 256
-	feeder := make(chan posLine, bufSize)
-	lines := make(chan line, bufSize)
-	buffer := make([]line, bufSize)
+	feeder := make(chan PosLine, bufSize)
+	lines := make(chan Line, bufSize)
+	buffer := make([]Line, bufSize)
 	var ok bool
-	var l posLine
+	var l PosLine
 	go func() {
 		bLen := 0
 		wg := sync.WaitGroup{}
 		flush := func() {
 			wg.Wait()
 			for i := 0; i < bLen; i++ {
-				if buffer[i].Pos == -1 {
+				if buffer[i].Pos.Line == POS_FILTERED_OUT {
 					continue //filtered out
 				}
 				select {
@@ -154,11 +188,11 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 					return
 				}
 				wg.Add(1)
-				go func(i int, l posLine) {
+				go func(i int, l PosLine) {
 					buffer[i] = f.filteredLine(l)
 					wg.Done()
 				}(bLen, l)
-				bLen += 1
+				bLen++
 			}
 			if bLen == bufSize {
 				flush()
@@ -168,14 +202,25 @@ func (f *fetcher) lineBuilder(ctx context.Context) (chan<- posLine, <-chan line)
 	return feeder, lines
 }
 
-// Returns channel for iterating and abort channel, when abort is hit by client should stop fetching and filling channel
-// If forward == back will yield records in reverse order
-func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
+// Get returns channel for yielding lines. Channel will be closed when no more lines to send
+// Client should close context when no more lines needed
+func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
+	ret := make(chan Line, 500)
+	startFrom, err := f.findLine(from.Offset)
+	if err == io.EOF {
+		close(ret)
+		return ret
+	}
+	if from.Line == POS_UNKNOWN {
+		from.Line = f.resolveLine(from.Offset)
+	}
 	f.lock.Lock()
-	f.seek(from)
-	ret := make(chan line, 500)
+	f.seek(startFrom)
+	var wg sync.WaitGroup
 	feeder, lines := f.lineBuilder(ctx)
-	go func() {
+	wg.Add(1)
+	go func(lineNum LineNo) {
+		defer wg.Done()
 		defer close(feeder)
 		for {
 			str, pos, err := f.readline()
@@ -183,19 +228,23 @@ func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 				return
 			}
 			select {
-			case feeder <- posLine{str, pos}:
+			case feeder <- PosLine{b: str, Pos: Pos{lineNum, pos}}:
 			case <-ctx.Done():
 				return
 			}
 			if err == io.EOF {
 				return
 			}
+			if lineNum != POS_UNKNOWN {
+				lineNum++
+			}
 		}
-	}()
+	}(from.Line)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(ret)
-		defer f.lock.Unlock()
-		var l line
+		var l Line
 		var ok bool
 		for {
 			select {
@@ -213,101 +262,198 @@ func (f *fetcher) Get(ctx context.Context, from int) <-chan line {
 			}
 		}
 	}()
+	go func() {
+		wg.Wait()
+		for range lines { //draining lines, will act as lock for linebuilder
+		}
+		f.lock.Unlock()
+	}()
 	return ret
 }
 
-// Returns position of next matching search
-func (f *fetcher) Search(ctx context.Context, from int, sub []rune) (index int) {
-	defer logging.Timeit("Searching for ", string(sub))()
-	index = -1
+// Search returns position of next matching search
+func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
+	defer logging.Timeit("Searching")()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	reader := f.Get(ctx, from)
 	for l := range reader {
-		if runes.Index(l.Str.Runes, sub) != -1 {
+		if searchFunc(l.Str.Runes) != nil {
 			return l.Pos
 		}
 	}
-	return
+	return POS_NOT_FOUND
 }
 
-// Returns position of next matching back-search
-func (f *fetcher) SearchBack(ctx context.Context, from int, sub []rune) (index int) {
-	defer logging.Timeit("Back-Searching for ", string(sub))()
-	index = -1
+// SearchBack returns position of next matching back-search
+func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
+	defer logging.Timeit("Back-Searching")()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	reader := f.GetBack(ctx, from)
 	for l := range reader {
-		if runes.Index(l.Str.Runes, sub) != -1 {
+		if searchFunc(l.Str.Runes) != nil {
 			return l.Pos
 		}
 	}
-	return
+	return POS_NOT_FOUND
 
 }
 
-type posLine struct {
-	b   []byte
-	pos int
-}
-
-func (f *fetcher) lastLine() int {
-	f.seek(f.totalLines - 1)
-	for {
-		_, _, err := f.readline()
-		if err == io.EOF {
-			return f.totalLines - 1
-		}
-	}
-	//}
-	return f.totalLines - 1
-}
-
-func (f *fetcher) GetBack(ctx context.Context, from int) <-chan line {
+func (f *Fetcher) advanceLines(from Pos) PosLine {
 	f.lock.Lock()
-	ret := make(chan line, 500)
-	tmpLines := make([]posLine, 100)
-	var l line
-	go func() {
-		defer f.lock.Unlock()
+	defer f.lock.Unlock()
+	f.seek(from.Offset)
+	i := from.Line
+	ret := PosLine{Pos: from}
+	for {
+		str, offset, err := f.readline()
+		if err == io.EOF && len(str) == 0 {
+			return ret
+		}
+		ret.b, ret.Offset, ret.Line = str, offset, i
+		if err == io.EOF {
+			ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
+			return ret
+		}
+		if i >= 3500+from.Line {
+			return ret
+		}
+		i++
+	}
+}
+
+func (f *Fetcher) lastOffset() Offset {
+	stat, err := f.reader.Stat()
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Error retrieving stat from file: %s", err))
+		return Offset(0)
+	}
+	if stat.Size() == 0 {
+		return Offset(0)
+	}
+	return Offset(stat.Size() - 1)
+}
+
+const fetchBackStep = 64 * 1024
+
+func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
+	//f.lock.Lock()
+	ret := make(chan Line, 500)
+	tmpLines := make([]PosLine, fetchBackStep/20) // Presuming, that average line > 20 cols. Otherwise - append will increase underlying array
+	var l Line
+	var lineOffset Offset
+	var err error
+	// Determine if seeking from the end
+	if fromPos.Line == POS_UNKNOWN {
+		fromPos.Line = f.resolveLine(fromPos.Offset)
+	}
+	lineAssign := fromPos.Line
+	from := fromPos.Offset
+	go func(lineAssign LineNo) {
+		//defer f.lock.Unlock()
 		defer close(ret)
 		for {
-			if from == 0 {
+			if from < 0 {
 				return
 			}
 			tmpLines = tmpLines[:0]
-			f.seek(from - 100)
+			lineOffset, err = f.findLine(from - fetchBackStep)
+			if err == io.EOF || lineOffset > fromPos.Offset {
+				// line longer then 64k
+				from = from - fetchBackStep
+				continue
+			}
+			f.lock.Lock()
+			f.seek(lineOffset)
 			for {
 				str, pos, err := f.readline()
 				if len(str) == 0 && err == io.EOF {
 					break
 				}
-				if pos >= from {
+				if pos > from {
 					break
 				}
-				tmpLines = append(tmpLines, posLine{str, pos})
-				// Ignoring channel close here, reading 100 is fast enough to exclude expensive channel checks
+				tmpLines = append(tmpLines, PosLine{str, Pos{POS_UNKNOWN, pos}})
+				// Ignoring context cancel here, reading is fast enough to exclude expensive channel checks
 				if err == io.EOF {
 					break
 				}
 			}
 			for i := len(tmpLines) - 1; i >= 0; i-- {
+				if fromPos.Line > 0 {
+					tmpLines[i].Line = lineAssign
+					lineAssign--
+					//logging.Debug("assigned line", tmpLines[i].Line)
+				}
 				l = f.filteredLine(tmpLines[i])
-				if l.Pos == -1 { //filtered out
+				if l.Pos.Line == POS_FILTERED_OUT { //filtered out
 					continue
 				}
 				select {
-				case ret <- line{ansi.NewAstring(tmpLines[i].b), tmpLines[i].pos}: //TODO: paralellize
+				case ret <- l: //TODO: paralellize
 				case <-ctx.Done():
+					f.lock.Unlock()
 					return
 				}
 			}
-			from = from - 100
-			if from < 0 {
-				from = 0
-			}
+			from = from - fetchBackStep
+			f.lock.Unlock()
 		}
-	}()
+	}(lineAssign)
 	return ret
+}
+
+func (f *Fetcher) gcMap(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+			f.mLock.RLock()
+			size := len(f.lineMap)
+			f.mLock.RUnlock()
+			if size < 1000 {
+				continue
+			}
+			f.mLock.Lock()
+			keys := make(offsetArr, len(f.lineMap))
+
+			i := 0
+			for k := range f.lineMap {
+				keys[i] = k
+				i++
+			}
+			sort.Sort(keys)
+			toDelete := keys[:len(keys)-1000]
+			for _, k := range toDelete {
+				delete(f.lineMap, k)
+			}
+			f.mLock.Unlock()
+		}
+	}
+}
+
+func (f *Fetcher) updateMap(pos PosLine) {
+	f.mLock.Lock()
+	f.lineMap[pos.Offset+Offset(len(pos.b))] = pos.Line
+	f.lineMap[pos.Offset] = pos.Line
+	f.mLock.Unlock()
+}
+
+func (f *Fetcher) resolveLine(o Offset) LineNo {
+	f.mLock.Lock()
+	defer f.mLock.Unlock()
+	if lineNum, ok := f.lineMap[o]; ok {
+		return lineNum
+	}
+	return POS_UNKNOWN
+}
+
+func (f *Fetcher) removeLastFilter() bool {
+	if len(f.filters) > 0 {
+		f.filters = f.filters[:len(f.filters)-1]
+		return true
+	}
+	return false
 }
