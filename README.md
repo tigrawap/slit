@@ -75,6 +75,10 @@ When navigating up from the end, following will be stopped and resumed on naviga
 - `--short-stdin-timeout=10000` - Sets maximum duration (ms) to wait for delayed short stdin
 - `--version` - Displays version
 
+### Highlighting
+- ``` ` ``` - (Backtick) Mark top line for highlighting (i.e will be shown no matter what are other filters
+- ``` ~ ``` - Highlight filter. I.e search and highlight everything that matches
+
 ### Filters
 
 - Inclusive(&): Will keep only lines that match the pattern AND included by previous filters
