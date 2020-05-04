@@ -69,7 +69,7 @@ func (a offsetArr) Less(i, j int) bool { return a[i] < a[j] }
 // Line == -1 if Line is excluded
 func (f *Fetcher) filteredLine(l PosLine) Line {
 	str := ansi.NewAstring(l.b)
-	if (len(f.filters) == 0 || !f.filtersEnabled) && len(f.highlightedLines) == 0 {
+	if len(f.filters) == 0 && len(f.highlightedLines) == 0 {
 		return Line{str, l.Pos, false}
 	}
 	var filterResult filters.FilterResult
@@ -81,8 +81,10 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 		}
 	}
 
-	for _, filter := range f.filters {
-		filterResult = filter.TakeAction(str.Runes, filterResult)
+	if f.filtersEnabled{
+		for _, filter := range f.filters {
+			filterResult = filter.TakeAction(str.Runes, filterResult)
+		}
 	}
 	switch filterResult {
 	case filters.FilterExcluded:
