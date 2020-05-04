@@ -210,11 +210,11 @@ func (v *viewer) draw() {
 	for ty, dataLine := 0, 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
-		data, err := v.buffer.getLine(dataLine)
+		line, err := v.buffer.getLine(dataLine)
 		if err == io.EOF {
 			break
 		}
-		chars, attrs = v.replaceWithKeptChars(data)
+		chars, attrs = v.replaceWithKeptChars(line.Str)
 		hlIndices = [][]int{}
 		if len(v.search) != 0 {
 			searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
@@ -234,6 +234,10 @@ func (v *viewer) draw() {
 			if hlChars != 0 {
 				highlightStyle = termbox.AttrReverse
 				hlChars--
+			}
+			if line.Highlighted {
+				highlightStyle = highlightStyle | termbox.AttrUnderline
+				attr.Bg = attr.Bg | ansi.FgColor(ansi.ColorYellow)
 			}
 
 			fg, bg := ToTermboxAttr(attr)
@@ -354,6 +358,13 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case filters.FilterExcludeChar:
 			v.focus = &v.info
 			v.info.reset(ibModeExclude)
+		case filters.FilterHighlightChar:
+			v.focus = &v.info
+			v.info.reset(ibModeHighlight)
+		case '`':
+			v.fetcher.toggleHighlight(v.buffer.currentLine().Pos.Line)
+			v.buffer.refresh()
+			v.draw()
 		case '?':
 			v.focus = &v.info
 			v.info.reset(ibModeBackSearch)
@@ -677,6 +688,8 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 		v.addFilter(search.str, filters.FilterUnion)
 	case ibModeExclude:
 		v.addFilter(search.str, filters.FilterExclude)
+	case ibModeHighlight:
+		v.addFilter(search.str, filters.FilterHighlight)
 	case ibModeSave:
 		v.saveFiltered(string(search.str))
 	case ibModeSearch:

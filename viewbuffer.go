@@ -2,7 +2,6 @@ package slit
 
 import (
 	"context"
-	"github.com/tigrawap/slit/ansi"
 	"github.com/tigrawap/slit/filters"
 	"github.com/tigrawap/slit/logging"
 	"io"
@@ -20,15 +19,16 @@ type viewBuffer struct {
 	originalPos Pos
 }
 
-func (b *viewBuffer) getLine(offset int) (ansi.Astring, error) {
+func (b *viewBuffer) getLine(offset int) (Line, error) {
 	if b.pos+offset >= len(b.buffer) && !b.eofReached {
 		b.fill()
 	}
 	if b.pos+offset >= len(b.buffer) || len(b.buffer) == 0 {
 		b.eofReached = true
-		return ansi.NewAstring([]byte{}), io.EOF
+		return Line{}, io.EOF
+		//return ansi.NewAstring([]byte{}), io.EOF
 	}
-	return b.buffer[b.pos+offset].Str, nil // TODO: What happens if we reached the end? panic!
+	return b.buffer[b.pos+offset], nil // TODO: What happens if we reached the end? panic!
 }
 
 type fillResult struct {

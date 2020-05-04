@@ -20,6 +20,7 @@ const (
 	FilterNoaction FilterResult = iota
 	FilterIncluded
 	FilterExcluded
+	FilterHighlighted
 )
 
 type filter interface {
@@ -49,18 +50,21 @@ const (
 	FilterIntersect FilterAction = iota
 	FilterUnion
 	FilterExclude
+	FilterHighlight
 )
 
 const (
 	FilterIntersectChar rune = '&'
 	FilterUnionChar     rune = '+'
 	FilterExcludeChar   rune = '-'
+	FilterHighlightChar rune = '~'
 )
 
 var FilterActionMap = map[rune]FilterAction{
 	FilterIntersectChar: FilterIntersect,
 	FilterUnionChar:     FilterUnion,
 	FilterExcludeChar:   FilterExclude,
+	FilterHighlightChar: FilterHighlight,
 }
 
 func init() {
@@ -100,6 +104,8 @@ func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter,
 		af = buildUnionFunc(ff)
 	case FilterExclude:
 		af = buildExcludeFunc(ff)
+	case FilterHighlight:
+		af = buildHighlightFunc(ff)
 	default:
 		return nil, ErrBadFilterDefinition
 	}
@@ -165,6 +171,9 @@ func IndexAll(searchFunc SearchFunc, runestack []rune) (indices [][]int) {
 
 func buildUnionFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction FilterResult) FilterResult {
+		if currentAction == FilterHighlighted {
+			return FilterHighlighted
+		}
 		if currentAction == FilterIncluded {
 			return FilterIncluded
 		}
@@ -178,6 +187,9 @@ func buildUnionFunc(searchFunc SearchFunc) ActionFunc {
 
 func buildIntersectionFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction FilterResult) FilterResult {
+		if currentAction == FilterHighlighted {
+			return FilterHighlighted
+		}
 		if currentAction == FilterExcluded {
 			return FilterExcluded
 		}
@@ -190,6 +202,9 @@ func buildIntersectionFunc(searchFunc SearchFunc) ActionFunc {
 
 func buildExcludeFunc(searchFunc SearchFunc) ActionFunc {
 	return func(str []rune, currentAction FilterResult) FilterResult {
+		if currentAction == FilterHighlighted {
+			return FilterHighlighted
+		}
 		if currentAction == FilterExcluded {
 			return FilterExcluded
 		}
@@ -197,6 +212,18 @@ func buildExcludeFunc(searchFunc SearchFunc) ActionFunc {
 			return FilterExcluded
 		}
 		return FilterIncluded
+	}
+}
+
+func buildHighlightFunc(searchFunc SearchFunc) ActionFunc {
+	return func(str []rune, currentAction FilterResult) FilterResult {
+		if currentAction == FilterHighlighted {
+			return FilterHighlighted
+		}
+		if searchFunc(str) != nil {
+			return FilterHighlighted
+		}
+		return currentAction
 	}
 }
 

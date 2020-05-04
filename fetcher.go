@@ -23,6 +23,7 @@ type Fetcher struct {
 	lineReaderOffset Offset
 	lineReaderPos    int
 	filters          []*filters.Filter
+	highlightedLines []LineNo
 	filtersEnabled   bool
 }
 
@@ -56,6 +57,7 @@ type PosLine struct {
 type Line struct {
 	Str ansi.Astring
 	Pos
+	Highlighted bool
 }
 
 type offsetArr []Offset
@@ -67,18 +69,28 @@ func (a offsetArr) Less(i, j int) bool { return a[i] < a[j] }
 // Line == -1 if Line is excluded
 func (f *Fetcher) filteredLine(l PosLine) Line {
 	str := ansi.NewAstring(l.b)
-	if len(f.filters) == 0 || !f.filtersEnabled {
-		return Line{str, l.Pos}
+	if (len(f.filters) == 0 || !f.filtersEnabled) && len(f.highlightedLines) == 0 {
+		return Line{str, l.Pos, false}
 	}
-	var action filters.FilterResult
+	var filterResult filters.FilterResult
+	for _, highlighted := range f.highlightedLines {
+		logging.Debug(f.highlightedLines, l.Pos.Line)
+		if highlighted == l.Pos.Line {
+			filterResult = filters.FilterHighlighted
+			break
+		}
+	}
+
 	for _, filter := range f.filters {
-		action = filter.TakeAction(str.Runes, action)
+		filterResult = filter.TakeAction(str.Runes, filterResult)
 	}
-	switch action {
+	switch filterResult {
 	case filters.FilterExcluded:
 		return Line{Pos: Pos{Line: POS_FILTERED_OUT, Offset: l.Pos.Offset}}
+	case filters.FilterHighlighted:
+		return Line{str, l.Pos, true}
 	default:
-		return Line{str, l.Pos}
+		return Line{str, l.Pos, false}
 	}
 
 }
@@ -456,4 +468,14 @@ func (f *Fetcher) removeLastFilter() bool {
 		return true
 	}
 	return false
+}
+func (f *Fetcher) toggleHighlight(line LineNo) {
+	for i, highlighted := range f.highlightedLines {
+		if highlighted == line {
+			copy(f.highlightedLines[i:], f.highlightedLines[i+1:])
+			f.highlightedLines = f.highlightedLines[:len(f.highlightedLines)-1]
+			return
+		}
+	}
+	f.highlightedLines = append(f.highlightedLines, line)
 }

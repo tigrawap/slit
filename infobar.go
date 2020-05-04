@@ -29,6 +29,7 @@ const (
 	ibModeSave
 	ibModeMessage
 	ibModeKeepCharacters
+	ibModeHighlight
 )
 
 type infobar struct {
@@ -123,6 +124,9 @@ func (v *infobar) draw() {
 		v.showSearch()
 	case ibModeExclude:
 		termbox.SetCell(0, v.y, '-', termbox.ColorGreen, termbox.ColorDefault)
+		v.showSearch()
+	case ibModeHighlight:
+		termbox.SetCell(0, v.y, '~', termbox.ColorGreen, termbox.ColorDefault)
 		v.showSearch()
 	case ibModeSave:
 		termbox.SetCell(0, v.y, '>', termbox.ColorMagenta, termbox.ColorDefault)
@@ -294,6 +298,7 @@ func (v *infobar) switchSearchType() {
 		ibModeAppend,
 		ibModeSearch,
 		ibModeBackSearch,
+		ibModeHighlight,
 		ibModeFilter:
 		st := v.searchType
 		nextID := st.ID + 1
