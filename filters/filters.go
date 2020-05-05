@@ -85,7 +85,7 @@ type ActionFunc func(str []rune, currentAction FilterResult) FilterResult
 type Filter struct {
 	sub        []rune
 	st         SearchType
-	action     FilterAction
+	Action     FilterAction
 	TakeAction ActionFunc
 }
 

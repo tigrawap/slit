@@ -299,6 +299,21 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.Searc
 	return POS_NOT_FOUND
 }
 
+
+// Search returns position of next matching search
+func (f *Fetcher) SearchHighlighted(ctx context.Context, from Pos) (pos Pos) {
+	defer logging.Timeit("Searching")()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	reader := f.Get(ctx, from)
+	for l := range reader {
+		if l.Highlighted {
+			return l.Pos
+		}
+	}
+	return POS_NOT_FOUND
+}
+
 // SearchBack returns position of next matching back-search
 func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.SearchFunc) (pos Pos) {
 	defer logging.Timeit("Back-Searching")()
@@ -311,8 +326,23 @@ func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.S
 		}
 	}
 	return POS_NOT_FOUND
-
 }
+
+
+// SearchBack returns position of next matching back-search
+func (f *Fetcher) SearchBackHighlighted(ctx context.Context, from Pos) (pos Pos) {
+	defer logging.Timeit("Back-Searching")()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	reader := f.GetBack(ctx, from)
+	for l := range reader {
+		if l.Highlighted {
+			return l.Pos
+		}
+	}
+	return POS_NOT_FOUND
+}
+
 
 func (f *Fetcher) advanceLines(from Pos) PosLine {
 	f.lock.Lock()
@@ -480,4 +510,7 @@ func (f *Fetcher) toggleHighlight(line LineNo) {
 		}
 	}
 	f.highlightedLines = append(f.highlightedLines, line)
+	sort.Slice(f.highlightedLines, func(i, j int) bool {
+		return f.highlightedLines[i] < f.highlightedLines[j]
+	})
 }

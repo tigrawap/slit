@@ -180,6 +180,32 @@ func (b *viewBuffer) searchBack(searchFunc filters.SearchFunc) int {
 	return -1
 }
 
+
+
+func (b *viewBuffer) searchForwardHighlighted() int {
+	for i, line := range b.buffer[b.pos:] {
+		if i == 0 {
+			// TODO: Maintain search index?( to navigate inside string)
+			continue
+		}
+		if line.Highlighted {
+			return i
+		}
+	}
+	return -1
+}
+
+func (b *viewBuffer) searchBackHighlighted() int {
+	prevLines := b.buffer[:b.pos]
+	for i := 1; i <= len(prevLines); i++ {
+		if prevLines[len(prevLines)-i].Highlighted {
+			return i
+		}
+	}
+	return -1
+}
+
+
 func (b *viewBuffer) lastLine() Line {
 	lastLine := len(b.buffer) - 1
 	if lastLine != -1 {
