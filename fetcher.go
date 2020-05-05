@@ -81,8 +81,8 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 		}
 	}
 
-	if f.filtersEnabled {
-		for _, filter := range f.filters {
+	for _, filter := range f.filters {
+		if f.filtersEnabled || filter.Action == filters.FilterHighlight {
 			filterResult = filter.TakeAction(str.Runes, filterResult)
 		}
 	}

@@ -371,9 +371,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case 'M':
 			reportSystemUsage()
 		case '=':
-			v.fetcher.filters = v.fetcher.filters[:0]
-			v.buffer.refresh()
-			v.draw()
+			v.dropFilters()
 		case 'C':
 			v.switchFilters()
 		case 'K':
@@ -411,6 +409,8 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigateStart()
 		case termbox.KeyEnd:
 			v.navigateEnd()
+		case termbox.KeyCtrlH:
+			v.dropHighlights()
 		case termbox.KeyCtrlS:
 			v.focus = &v.info
 			v.info.reset(ibModeSave)
@@ -722,6 +722,36 @@ func (v *viewer) navigatePageDown() {
 }
 func (v *viewer) navigateHalfPageDown() {
 	v.navigate(v.height / 2)
+}
+
+func (v *viewer) dropFilters() {
+	v.fetcher.lock.Lock()
+	newFilters := make([]*filters.Filter, 0)
+	for _, filter := range v.fetcher.filters {
+		logging.Debug(filter.Action)
+		if filter.Action == filters.FilterHighlight {
+			newFilters = append(newFilters, filter)
+		}
+	}
+	v.fetcher.filters = newFilters
+	v.fetcher.lock.Unlock()
+	v.buffer.refresh()
+	v.draw()
+}
+
+func (v *viewer) dropHighlights() {
+	v.fetcher.lock.Lock()
+	newFilters := make([]*filters.Filter, 0)
+	for _, filter := range v.fetcher.filters {
+		if filter.Action != filters.FilterHighlight {
+			newFilters = append(newFilters, filter)
+		}
+	}
+	v.fetcher.filters = newFilters
+	v.fetcher.highlightedLines = v.fetcher.highlightedLines[:0]
+	v.fetcher.lock.Unlock()
+	v.buffer.refresh()
+	v.draw()
 }
 
 func reportSystemUsage() {

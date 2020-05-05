@@ -113,6 +113,7 @@ func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter,
 	return &Filter{
 		sub:        sub,
 		st:         searchType,
+		Action: action,
 		TakeAction: af,
 	}, nil
 }
