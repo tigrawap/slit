@@ -223,3 +223,6 @@ func (b *viewBuffer) shiftToEnd() {
 	}
 	b.pos = len(b.buffer) - b.window
 }
+func (b *viewBuffer) toggleCurrentHighlight() {
+	b.buffer[b.pos].Highlighted=!b.buffer[b.pos].Highlighted
+}

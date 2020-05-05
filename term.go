@@ -363,7 +363,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.info.reset(ibModeHighlight)
 		case '`':
 			v.fetcher.toggleHighlight(v.buffer.currentLine().Pos.Line)
-			v.buffer.refresh()
+			v.buffer.toggleCurrentHighlight()
 			v.draw()
 		case '?':
 			v.focus = &v.info
