@@ -78,6 +78,10 @@ When navigating up from the end, following will be stopped and resumed on naviga
 ### Highlighting
 - ``` ` ``` - (Backtick) Mark top line for highlighting (i.e will be shown no matter what are other filters
 - ``` ~ ``` - Highlight filter. I.e search and highlight everything that matches
+- `h` - Move to next highlighted line
+- `H` - Move to previous highlighted line
+- `ctrl+h` - Remove all highlights
+- `=` - Removes only filters, does not remove highlights via `~`
 
 ### Filters
 
