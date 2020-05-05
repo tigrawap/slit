@@ -180,8 +180,6 @@ func (b *viewBuffer) searchBack(searchFunc filters.SearchFunc) int {
 	return -1
 }
 
-
-
 func (b *viewBuffer) searchForwardHighlighted() int {
 	for i, line := range b.buffer[b.pos:] {
 		if i == 0 {
@@ -204,7 +202,6 @@ func (b *viewBuffer) searchBackHighlighted() int {
 	}
 	return -1
 }
-
 
 func (b *viewBuffer) lastLine() Line {
 	lastLine := len(b.buffer) - 1
@@ -250,5 +247,5 @@ func (b *viewBuffer) shiftToEnd() {
 	b.pos = len(b.buffer) - b.window
 }
 func (b *viewBuffer) toggleCurrentHighlight() {
-	b.buffer[b.pos].Highlighted=!b.buffer[b.pos].Highlighted
+	b.buffer[b.pos].Highlighted = !b.buffer[b.pos].Highlighted
 }

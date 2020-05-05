@@ -71,7 +71,6 @@ func (v *viewer) searchForward() {
 	}
 }
 
-
 func (v *viewer) searchHighlighted() {
 	if distance := v.buffer.searchForwardHighlighted(); distance != -1 {
 		v.navigate(distance)
@@ -82,8 +81,6 @@ func (v *viewer) searchHighlighted() {
 		v.draw()
 	}
 }
-
-
 
 func (v *viewer) searchBack() {
 	searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
@@ -105,7 +102,6 @@ func (v *viewer) searchBack() {
 	}
 }
 
-
 func (v *viewer) searchBackHighlighted() {
 	if distance := v.buffer.searchBackHighlighted(); distance != -1 {
 		v.navigate(-distance)
@@ -121,7 +117,6 @@ func (v *viewer) searchBackHighlighted() {
 		v.draw()
 	}
 }
-
 
 func (v *viewer) nextSearch(reverse bool) {
 	if len(v.search) == 0 {
@@ -305,7 +300,6 @@ func (v *viewer) navigate(direction int) {
 	}
 	v.draw()
 }
-
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})

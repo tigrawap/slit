@@ -299,7 +299,6 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.Searc
 	return POS_NOT_FOUND
 }
 
-
 // Search returns position of next matching search
 func (f *Fetcher) SearchHighlighted(ctx context.Context, from Pos) (pos Pos) {
 	defer logging.Timeit("Searching")()
@@ -328,7 +327,6 @@ func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.S
 	return POS_NOT_FOUND
 }
 
-
 // SearchBack returns position of next matching back-search
 func (f *Fetcher) SearchBackHighlighted(ctx context.Context, from Pos) (pos Pos) {
 	defer logging.Timeit("Back-Searching")()
@@ -342,7 +340,6 @@ func (f *Fetcher) SearchBackHighlighted(ctx context.Context, from Pos) (pos Pos)
 	}
 	return POS_NOT_FOUND
 }
-
 
 func (f *Fetcher) advanceLines(from Pos) PosLine {
 	f.lock.Lock()
