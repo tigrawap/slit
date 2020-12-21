@@ -445,7 +445,14 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case termbox.KeyCtrlS:
 			v.focus = &v.info
 			v.info.reset(ibModeSave)
-			v.info.setInput(v.fetcher.reader.Name() + ".filtered")
+			var output string
+			output = os.Getenv("SLIT_OUTPUT")
+			if output == "" {
+				output = v.fetcher.reader.Name() + ".filtered"
+			} else {
+				output += "/slit.filtered"
+			}
+			v.info.setInput(output)
 		}
 	}
 	return
