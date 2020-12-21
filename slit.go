@@ -22,7 +22,6 @@ import (
 )
 
 func init() {
-	println(os.TempDir())
 	logging.Config.LogPath = filepath.Join(os.TempDir(), "slit.log")
 	slitdir := os.Getenv("SLIT_DIR")
 	if slitdir == "" {

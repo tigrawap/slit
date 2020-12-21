@@ -71,6 +71,17 @@ func (v *viewer) searchForward() {
 	}
 }
 
+func (v *viewer) searchHighlighted() {
+	if distance := v.buffer.searchForwardHighlighted(); distance != -1 {
+		v.navigate(distance)
+		return
+	}
+	if pos := v.fetcher.SearchHighlighted(context.TODO(), v.buffer.lastLine().Pos); pos != POS_NOT_FOUND {
+		v.buffer.reset(pos)
+		v.draw()
+	}
+}
+
 func (v *viewer) searchBack() {
 	searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
 	if err != nil {
@@ -86,6 +97,22 @@ func (v *viewer) searchBack() {
 	}
 	fromPos.Offset--
 	if pos := v.fetcher.SearchBack(context.TODO(), fromPos, searchFunc); pos != POS_NOT_FOUND {
+		v.buffer.reset(pos)
+		v.draw()
+	}
+}
+
+func (v *viewer) searchBackHighlighted() {
+	if distance := v.buffer.searchBackHighlighted(); distance != -1 {
+		v.navigate(-distance)
+		return
+	}
+	fromPos := v.buffer.currentLine().Pos
+	if fromPos.Line > 0 {
+		fromPos.Line--
+	}
+	fromPos.Offset--
+	if pos := v.fetcher.SearchBackHighlighted(context.TODO(), fromPos); pos != POS_NOT_FOUND {
 		v.buffer.reset(pos)
 		v.draw()
 	}
@@ -333,6 +360,10 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.nextSearch(false)
 		case 'N':
 			v.nextSearch(true)
+		case 'h':
+			v.searchHighlighted()
+		case 'H':
+			v.searchBackHighlighted()
 		case 'U':
 			if ok := v.fetcher.removeLastFilter(); ok {
 				v.buffer.refresh()
@@ -363,7 +394,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.info.reset(ibModeHighlight)
 		case '`':
 			v.fetcher.toggleHighlight(v.buffer.currentLine().Pos.Line)
-			v.buffer.refresh()
+			v.buffer.toggleCurrentHighlight()
 			v.draw()
 		case '?':
 			v.focus = &v.info
@@ -371,9 +402,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case 'M':
 			reportSystemUsage()
 		case '=':
-			v.fetcher.filters = v.fetcher.filters[:0]
-			v.buffer.refresh()
-			v.draw()
+			v.dropFilters()
 		case 'C':
 			v.switchFilters()
 		case 'K':
@@ -411,6 +440,8 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 			v.navigateStart()
 		case termbox.KeyEnd:
 			v.navigateEnd()
+		case termbox.KeyCtrlH:
+			v.dropHighlights()
 		case termbox.KeyCtrlS:
 			v.focus = &v.info
 			v.info.reset(ibModeSave)
@@ -722,6 +753,36 @@ func (v *viewer) navigatePageDown() {
 }
 func (v *viewer) navigateHalfPageDown() {
 	v.navigate(v.height / 2)
+}
+
+func (v *viewer) dropFilters() {
+	v.fetcher.lock.Lock()
+	newFilters := make([]*filters.Filter, 0)
+	for _, filter := range v.fetcher.filters {
+		logging.Debug(filter.Action)
+		if filter.Action == filters.FilterHighlight {
+			newFilters = append(newFilters, filter)
+		}
+	}
+	v.fetcher.filters = newFilters
+	v.fetcher.lock.Unlock()
+	v.buffer.refresh()
+	v.draw()
+}
+
+func (v *viewer) dropHighlights() {
+	v.fetcher.lock.Lock()
+	newFilters := make([]*filters.Filter, 0)
+	for _, filter := range v.fetcher.filters {
+		if filter.Action != filters.FilterHighlight {
+			newFilters = append(newFilters, filter)
+		}
+	}
+	v.fetcher.filters = newFilters
+	v.fetcher.highlightedLines = v.fetcher.highlightedLines[:0]
+	v.fetcher.lock.Unlock()
+	v.buffer.refresh()
+	v.draw()
 }
 
 func reportSystemUsage() {
