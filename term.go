@@ -12,6 +12,7 @@ import (
 	"github.com/tigrawap/slit/utils"
 	"io"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"sync"
@@ -445,8 +446,18 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case termbox.KeyCtrlS:
 			v.focus = &v.info
 			v.info.reset(ibModeSave)
-			v.info.setInput(v.fetcher.reader.Name() + ".filtered")
+			v.info.setInput(v.getFilteredLocationHint())
 		}
+	}
+	return
+}
+
+
+func (v *viewer) getFilteredLocationHint() (hint string) {
+	if config.filterOutput == "" {
+		hint = v.fetcher.reader.Name() + ".filtered"
+	} else {
+		hint = path.Join(config.filterOutput, "slit.filtered")
 	}
 	return
 }

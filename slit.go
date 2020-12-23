@@ -29,6 +29,8 @@ func init() {
 	}
 	config.historyPath = filepath.Join(slitdir, "history")
 	config.stdinFinished = make(chan struct{})
+
+	config.filterOutput = os.Getenv("SLIT_FILTER_OUTPUT_DIR")
 	//go func() {
 	//	log.Println(http.ListenAndServe("localhost:6060", nil))
 	//}()
@@ -41,6 +43,7 @@ type Config struct {
 	stdinFinished chan struct{}
 	follow        bool
 	keepChars     int
+	filterOutput  string
 	initFilters   []*filters.Filter
 }
 
