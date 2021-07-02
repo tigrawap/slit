@@ -2,14 +2,8 @@ package slit
 
 import (
 	"bufio"
-	"code.cloudfoundry.org/bytefmt"
 	"context"
 	"fmt"
-	"github.com/nsf/termbox-go"
-	"github.com/tigrawap/slit/ansi"
-	"github.com/tigrawap/slit/filters"
-	"github.com/tigrawap/slit/logging"
-	"github.com/tigrawap/slit/utils"
 	"io"
 	"os"
 	"path"
@@ -17,6 +11,14 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"code.cloudfoundry.org/bytefmt"
+	"github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
+	"github.com/tigrawap/slit/ansi"
+	"github.com/tigrawap/slit/filters"
+	"github.com/tigrawap/slit/logging"
+	"github.com/tigrawap/slit/utils"
 )
 
 type viewer struct {
@@ -274,7 +276,7 @@ func (v *viewer) draw() {
 				fg = fg | highlightStyle
 			}
 			termbox.SetCell(tx, ty, char, fg, bg)
-			tx++
+			tx += runewidth.RuneWidth(char)
 			if tx >= v.width {
 				if v.wrap {
 					tx = 0
@@ -451,7 +453,6 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 	}
 	return
 }
-
 
 func (v *viewer) getFilteredLocationHint() (hint string) {
 	if config.filterOutput == "" {
