@@ -71,6 +71,8 @@ func (v *viewer) searchForward() {
 	if pos := v.fetcher.Search(context.TODO(), v.buffer.lastLine().Pos, searchFunc); pos != POS_NOT_FOUND {
 		v.buffer.reset(pos)
 		v.draw()
+	} else {
+		v.info.setMessage(ibMessage{str: fmt.Sprintf("'%s' not found", string(v.search)), color: termbox.ColorRed})
 	}
 }
 
@@ -102,6 +104,8 @@ func (v *viewer) searchBack() {
 	if pos := v.fetcher.SearchBack(context.TODO(), fromPos, searchFunc); pos != POS_NOT_FOUND {
 		v.buffer.reset(pos)
 		v.draw()
+	} else {
+		v.info.setMessage(ibMessage{str: fmt.Sprintf("'%s' not found", string(v.search)), color: termbox.ColorRed})
 	}
 }
 
